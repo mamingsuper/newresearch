@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Compare an early-stage social-science idea with recent conference-paper evidence."
+    />
+    <title>Research Frontier Radar</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to the research workbench</a>
+    <header class="site-header">
+      <div class="shell header-inner">
+        <a class="brand" href="/" aria-label="Research Frontier Radar home">
+          <span class="brand-mark" aria-hidden="true">RFR</span>
+          <span>Research Frontier Radar</span>
+        </a>
+        <div class="mode-badge" id="mode-badge">Checking corpus…</div>
+      </div>
+    </header>
+
+    <main id="main-content">
+      <section class="hero shell">
+        <p class="eyebrow">Conference evidence for early-stage research</p>
+        <h1>See where your idea sits before you call it a gap.</h1>
+        <p class="hero-copy">
+          Describe a social-science study. The radar compares its topic, mechanism,
+          population, and method with the currently indexed conference corpus, then
+          shows concrete evidence and possible ways to differentiate the design.
+        </p>
+        <div class="promise-grid" aria-label="What the radar provides">
+          <article>
+            <span>01</span>
+            <h2>Closest work</h2>
+            <p>Paper-level matches with excerpts and original source links.</p>
+          </article>
+          <article>
+            <span>02</span>
+            <h2>Overlap map</h2>
+            <p>Separate topic, method, population, and mechanism overlap.</p>
+          </article>
+          <article>
+            <span>03</span>
+            <h2>Innovation paths</h2>
+            <p>Evidence-linked inferences, never an opaque novelty score.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="workbench shell" aria-labelledby="workbench-title">
+        <div class="workbench-heading">
+          <div>
+            <p class="eyebrow">Research workbench</p>
+            <h2 id="workbench-title">Describe the study you are considering</h2>
+          </div>
+          <button class="secondary-button" id="example-button" type="button">
+            Load an example
+          </button>
+        </div>
+
+        <form id="analysis-form" novalidate>
+          <label for="idea-input">Research idea</label>
+          <textarea
+            id="idea-input"
+            name="idea"
+            minlength="20"
+            maxlength="5000"
+            rows="9"
+            required
+            placeholder="Example: I want to test whether AI literacy moderates the effect of generative-AI political messages on trust among young adults, using an online experiment."
+          ></textarea>
+          <div class="form-meta">
+            <p>
+              The radar reports only what it finds in its indexed corpus. It cannot
+              prove that nobody has studied an idea.
+            </p>
+            <span id="character-count" aria-live="polite">0 / 5000</span>
+          </div>
+          <div class="privacy-note">
+            <strong>Idea privacy:</strong> mock mode keeps the request on this server.
+            In live mode, the text is sent to the configured model provider and is not
+            intentionally persisted by this application.
+          </div>
+          <div id="form-error" class="error-message" role="alert" hidden></div>
+          <button class="primary-button" id="submit-button" type="submit">
+            Analyze the research frontier
+          </button>
+        </form>
+      </section>
+
+      <section class="report-shell shell" id="report-section" aria-labelledby="report-title" hidden>
+        <div class="report-heading">
+          <p class="eyebrow">Evidence-grounded report</p>
+          <h2 id="report-title">Your research frontier</h2>
+        </div>
+        <div id="report-root" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell footer-inner">
+        <p>Independent research discovery interface. Conference records remain attributable to their original sources.</p>
+        <p>No global novelty claims.</p>
+      </div>
+    </footer>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
