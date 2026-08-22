@@ -54,6 +54,27 @@ test('normalizes an ICA record without inventing an affiliation', () => {
   assert.equal(normalized.sessionType, 'Paper Session');
 });
 
+test('uses the reviewed ICA program snapshot when a paper-level URL is absent', () => {
+  const normalized = normalizeIcaPaper(
+    {
+      id: '0',
+      title: 'Challenges to Contemporary Conflict Reporting Preconference',
+      abstract: 'A reviewed ICA conference-program abstract.',
+      authors: ['A. Scholar'],
+      division: 'Journalism Studies',
+      session_type: 'Preconference',
+      session_title: 'Conflict Reporting',
+      keywords: [],
+    },
+    { retrievedAt },
+  );
+
+  assert.equal(
+    normalized.sourceUrl,
+    'https://github.com/mamingsuper/ica2026-explorer/blob/main/76th%20Annual%20ICA%20Conference_20MAR2026.pdf',
+  );
+});
+
 test('rejects a source record without an abstract', () => {
   assert.throws(
     () =>
