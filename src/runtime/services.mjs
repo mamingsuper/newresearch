@@ -8,6 +8,7 @@ import {
   SupabaseRpcClient,
 } from '../retrieval/supabase-retriever.mjs';
 import { TavilyClient } from '../tavily/client.mjs';
+import { SupabaseCorpusClient } from '../supabase/corpus-client.mjs';
 
 export class ServiceConfigurationError extends Error {
   constructor(message) {
@@ -21,18 +22,6 @@ function required(env, names) {
   if (missing.length > 0) {
     throw new ServiceConfigurationError(`Missing required environment variables: ${missing.join(', ')}`);
   }
-}
-
-function liveCorpus(env) {
-  const conferences = (env.CORPUS_CONFERENCES ?? 'ICA 2026,APSA 2026')
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
-  const parsedCount = Number.parseInt(env.CORPUS_PAPER_COUNT ?? '0', 10);
-  return {
-    conferences,
-    paperCount: Number.isFinite(parsedCount) && parsedCount >= 0 ? parsedCount : 0,
-  };
 }
 
 function optionalPositiveInteger(env, name, fallback) {
@@ -52,9 +41,19 @@ export function createServices(env = process.env, { fetchImpl = globalThis.fetch
       retriever: new LocalPaperRetriever(SAMPLE_PAPERS),
       analyzer: new MockIdeaAnalyzer(),
       corpus: {
-        conferences: ['ICA 2026 demo', 'APSA 2026 demo'],
+        conferences: [
+          { slug: 'ica', name: 'ICA', year: 2026, papers: SAMPLE_PAPERS.filter((paper) => paper.conference.slug === 'ica').length },
+          { slug: 'apsa', name: 'APSA', year: 2026, papers: SAMPLE_PAPERS.filter((paper) => paper.conference.slug === 'apsa').length },
+        ],
         paperCount: SAMPLE_PAPERS.length,
+        papersWithAbstract: SAMPLE_PAPERS.length,
+        embeddedPaperCount: SAMPLE_PAPERS.length,
+        pendingEmbeddingCount: 0,
+        failedEmbeddingCount: 0,
+        latestSuccessfulIngestionAt: null,
+        ready: true,
       },
+      getCorpusStats: async function getCorpusStats() { return this.corpus; },
     };
   }
   if (mode !== 'live') {
@@ -78,6 +77,20 @@ export function createServices(env = process.env, { fetchImpl = globalThis.fetch
     apiKey: supabaseServerKey,
     fetchImpl,
   });
+  const corpusClient = new SupabaseCorpusClient({
+    url: env.SUPABASE_URL,
+    apiKey: supabaseServerKey,
+    fetchImpl,
+  });
+  let cachedCorpus = null;
+  let cachedCorpusAt = 0;
+  const getCorpusStats = async () => {
+    const now = Date.now();
+    if (cachedCorpus && now - cachedCorpusAt < 60_000) return cachedCorpus;
+    cachedCorpus = await corpusClient.getCorpusStats();
+    cachedCorpusAt = now;
+    return cachedCorpus;
+  };
   return {
     mode,
     retriever: new SupabasePaperRetriever({ embeddingClient, rpcClient }),
@@ -91,7 +104,8 @@ export function createServices(env = process.env, { fetchImpl = globalThis.fetch
       ),
       fetchImpl,
     }),
-    corpus: liveCorpus(env),
+    corpus: { conferences: [], paperCount: 0, papersWithAbstract: 0, embeddedPaperCount: 0, pendingEmbeddingCount: 0, failedEmbeddingCount: 0, latestSuccessfulIngestionAt: null, ready: false },
+    getCorpusStats,
   };
 }
 

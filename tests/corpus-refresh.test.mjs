@@ -1,0 +1,5 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { refreshCorpus } from '../src/corpus/refresh.mjs';
+test('refresh runs validate, load, embed-until-empty, and stats in order', async () => { const calls=[]; let embedCalls=0; const result=await refreshCorpus({ validate:async()=>{calls.push('validate');return {validRecords:2};}, load:async()=>{calls.push('load');return {counts:{inserted:2}};}, embed:async()=>{calls.push('embed');embedCalls+=1;return embedCalls===1?{claimed:2,completed:2}:{claimed:0,completed:0};}, stats:async()=>{calls.push('stats');return {paperCount:2,ready:true};} }); assert.deepEqual(calls,['validate','load','embed','embed','stats']); assert.equal(result.stats.ready,true); });
+test('refresh stops before load when validation fails', async () => { const calls=[]; await assert.rejects(refreshCorpus({ validate:async()=>{calls.push('validate');throw new Error('bad snapshot');}, load:async()=>{calls.push('load');},embed:async()=>{},stats:async()=>{} }),/bad snapshot/); assert.deepEqual(calls,['validate']); });
