@@ -53,15 +53,37 @@ create table if not exists public.papers (
   retrieved_at timestamptz not null,
   raw_hash text not null,
   embedding extensions.vector(512),
-  search_document tsvector generated always as (
-    setweight(to_tsvector('english', coalesce(title, '')), 'A') ||
-    setweight(to_tsvector('english', coalesce(array_to_string(keywords, ' '), '')), 'B') ||
-    setweight(to_tsvector('english', coalesce(abstract, '')), 'C')
-  ) stored,
+  search_document tsvector,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (conference_slug, conference_year, source_record_id)
 );
+
+-- PostgreSQL requires generated-column expressions to be IMMUTABLE. array_to_string
+-- is STABLE in PostgreSQL 17, so compute the weighted search vector in a trigger
+-- instead of a generated column. This preserves title/keyword/abstract weighting.
+create or replace function public.refresh_paper_search_document()
+returns trigger
+language plpgsql
+security invoker
+set search_path = public, pg_catalog
+as $$
+begin
+  new.search_document :=
+    setweight(to_tsvector('english', coalesce(new.title, '')), 'A') ||
+    setweight(to_tsvector('english', coalesce(array_to_string(new.keywords, ' '), '')), 'B') ||
+    setweight(to_tsvector('english', coalesce(new.abstract, '')), 'C');
+  return new;
+end;
+$$;
+
+create trigger papers_search_document_trigger
+before insert or update of title, abstract, keywords
+on public.papers
+for each row execute function public.refresh_paper_search_document();
+
+revoke all on function public.refresh_paper_search_document() from public, anon, authenticated;
+grant execute on function public.refresh_paper_search_document() to service_role;
 
 -- The public schema is exposed by Supabase's Data API. Keep these backend-only
 -- tables inaccessible to anon/authenticated roles and use a server secret key.
