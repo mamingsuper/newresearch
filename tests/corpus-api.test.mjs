@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { once } from 'node:events';
+import { createServer } from 'node:http';
+import { createRequestHandler } from '../src/app/create-app.mjs';
+import { createServices } from '../src/runtime/services.mjs';
+const LIVE_STATS={ conferences:[{slug:'ica',name:'ICA',year:2026,papers:3}],paperCount:3,papersWithAbstract:3, embeddedPaperCount:2,pendingEmbeddingCount:1,failedEmbeddingCount:0,latestSuccessfulIngestionAt:'2026-08-22T10:00:00.000Z',ready:true };
+async function withServer(services, run) { const server=createServer(createRequestHandler({services,publicDir:null,logger:{error(){}}})); server.listen(0,'127.0.0.1'); await once(server,'listening'); try { await run(`http://127.0.0.1:${server.address().port}`); } finally { server.close(); await once(server,'close'); } }
+test('GET /api/corpus returns dynamic corpus readiness', async () => { const services={ mode:'live', corpus:{conferences:[],paperCount:0}, getCorpusStats:async()=>LIVE_STATS }; await withServer(services, async(baseUrl)=>{ const response=await fetch(`${baseUrl}/api/corpus`); const payload=await response.json(); assert.equal(response.status,200); assert.equal(payload.data.paperCount,3); assert.equal(payload.data.pendingEmbeddingCount,1); assert.equal(payload.data.ready,true); }); });
+test('health endpoint uses dynamic corpus stats when available', async () => { const services={ mode:'live', corpus:{conferences:[],paperCount:0}, getCorpusStats:async()=>LIVE_STATS }; await withServer(services, async(baseUrl)=>{ const payload=await (await fetch(`${baseUrl}/api/health`)).json(); assert.equal(payload.data.corpus.paperCount,3); assert.equal(payload.data.corpus.embeddedPaperCount,2); }); });
+test('live services expose database-derived corpus stats without CORPUS_* env variables', async () => { const calls=[]; const fetchImpl=async(url,options)=>{ calls.push([url,options]); return new Response(JSON.stringify(LIVE_STATS),{status:200,headers:{'content-type':'application/json'}}); }; const services=createServices({APP_MODE:'live',OPENAI_API_KEY:'openai-test',SUPABASE_URL:'https://project.supabase.co',SUPABASE_SECRET_KEY:'sb_secret_example'},{fetchImpl}); const stats=await services.getCorpusStats(); assert.equal(stats.paperCount,3); assert.match(calls[0][0],/rpc\/get_corpus_stats$/); });
