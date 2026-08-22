@@ -17,6 +17,10 @@ test('migration defines provenance, vector search, full-text search, and RRF', a
   assert.match(sql, /source_url\s+text\s+not null/i);
   assert.match(sql, /raw_hash\s+text\s+not null/i);
   assert.match(sql, /embedding\s+extensions\.vector\(512\)/i);
+  assert.match(sql, /search_document\s+tsvector/i);
+  assert.match(sql, /create or replace function public\.refresh_paper_search_document/i);
+  assert.match(sql, /create trigger papers_search_document_trigger/i);
+  assert.doesNotMatch(sql, /search_document\s+tsvector\s+generated\s+always/i);
   assert.match(sql, /using gin\s*\(search_document\)/i);
   assert.match(sql, /using hnsw\s*\(embedding vector_cosine_ops\)/i);
   assert.match(sql, /create or replace function public\.hybrid_search_papers/i);

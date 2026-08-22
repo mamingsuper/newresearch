@@ -1,6 +1,9 @@
 import { createHash } from 'node:crypto';
 import { ValidationError, validatePaperRecord } from '../domain/schema.mjs';
 
+const ICA_2026_PROGRAM_SNAPSHOT_URL =
+  'https://github.com/mamingsuper/ica2026-explorer/blob/main/76th%20Annual%20ICA%20Conference_20MAR2026.pdf';
+
 function requiredText(value, field) {
   if (typeof value !== 'string' || value.trim() === '') {
     throw new ValidationError('is required', field);
@@ -96,7 +99,12 @@ export function normalizeIcaPaper(record, options = {}) {
     division: record.division,
     sessionTitle: record.session_title ?? record.sessionTitle,
     sessionType: record.session_type ?? record.sessionType,
-    sourceUrl: record.url ?? record.directUrl ?? record.source_url,
+    sourceUrl:
+      record.url ??
+      record.directUrl ??
+      record.source_url ??
+      options.sourceUrl ??
+      ICA_2026_PROGRAM_SNAPSHOT_URL,
     keywords: record.keywords,
     retrievedAt: options.retrievedAt,
     original: record,
