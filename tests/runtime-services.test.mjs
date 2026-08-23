@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServices, ServiceConfigurationError } from '../src/runtime/services.mjs';
 import { LocalPaperRetriever } from '../src/retrieval/local-retriever.mjs';
+import { OpenAIEmbeddingsClient } from '../src/retrieval/supabase-retriever.mjs';
 import { MockIdeaAnalyzer } from '../src/analysis/mock-analyzer.mjs';
 
 test('mock mode constructs local services without credentials', () => {
@@ -27,7 +28,7 @@ test('an unsupported mode does not silently fall back to mock', () => {
   );
 });
 
-test('live mode accepts the current Supabase server secret key', () => {
+test('live mode accepts the current Supabase server secret key and uses the OpenAI production embedding model', () => {
   const services = createServices({
     APP_MODE: 'live',
     OPENAI_API_KEY: 'openai-test',
@@ -36,6 +37,8 @@ test('live mode accepts the current Supabase server secret key', () => {
   });
 
   assert.equal(services.mode, 'live');
+  assert.ok(services.retriever.embeddingClient instanceof OpenAIEmbeddingsClient);
+  assert.equal(services.retriever.embeddingClient.model, 'text-embedding-3-small');
 });
 
 test('live mode still accepts the legacy Supabase service-role key', () => {
