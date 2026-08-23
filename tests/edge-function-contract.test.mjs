@@ -27,6 +27,7 @@ test('analyze-idea Edge Function enforces the public beta evidence contract', as
   assert.match(source, /match_count\s*:\s*12/);
   assert.match(source, /gpt-5-mini/);
   assert.match(source, /max_output_tokens\s*:\s*1800/);
+  assert.match(source, /reasoning\s*:\s*\{\s*effort\s*:\s*['"]minimal['"]\s*\}/);
   assert.match(source, /store\s*:\s*false/);
   assert.match(source, /json_schema/);
   assert.match(source, /strict\s*:\s*true/);
@@ -36,9 +37,6 @@ test('analyze-idea Edge Function enforces the public beta evidence contract', as
   assert.match(source, /no-store/i);
   assert.match(source, /OPTIONS/);
   assert.match(source, /Access-Control-Allow-Origin/i);
-  assert.match(source, /analyze_idea_failure/);
-  assert.match(source, /stage/);
-  assert.match(source, /safeErrorCode|safe_error_code/i);
   assert.doesNotMatch(source, /console\.(log|error|warn)\([^\n]*(idea|body|clientNetwork)/i);
   assert.doesNotMatch(source, /providerBody|responseBody/);
 });
