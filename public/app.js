@@ -1,5 +1,5 @@
 import { createTranslator } from './i18n.js';
-import { initWorkspaceNavigation } from './workspace.js';
+import { createWorkspaceUiState, initWorkspaceNavigation } from './workspace.js';
 
 const LOCALE_STORAGE_KEY = 'idea-radar-locale';
 const readLocale = () => {
@@ -7,6 +7,7 @@ const readLocale = () => {
 };
 let translator = createTranslator({ locale: readLocale() });
 let t = translator.t;
+const uiState = createWorkspaceUiState();
 
 const form = document.querySelector('#analysis-form');
 const ideaInput = document.querySelector('#idea-input');
@@ -37,7 +38,6 @@ const PROGRESS_STAGES = [
 ];
 
 let progressTimer = null;
-let progressValue = 0;
 let progressStageIndex = 0;
 let progressHoldTicks = 0;
 let latestCorpus = null;
@@ -68,6 +68,7 @@ function setLocale(locale) {
   applyStaticTranslations();
   localeSelector.value = translator.locale;
   updateCharacterCount();
+  renderUiState();
   if (latestCorpus) renderCorpusStatus(latestCorpus, latestCorpusMode);
   if (latestReport) renderReport(latestReport, { scroll: false });
 }
@@ -383,12 +384,30 @@ function renderReport(report, { scroll = true } = {}) {
   if (scroll) reportSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function setProgress(value, label) {
+function renderUiState() {
+  const view = uiState.view(t);
+  submitButton.disabled = view.busy;
+  ideaInput.disabled = view.busy;
+  exampleButton.disabled = view.busy;
+  for (const chip of exampleChips) chip.disabled = view.busy;
+  submitButton.replaceChildren(
+    document.createTextNode(view.submitLabel),
+    document.createTextNode(view.busy ? '' : ' →'),
+  );
+  searchProgress.hidden = view.progress.hidden;
+  progressPercent.textContent = `${view.progress.value}%`;
+  progressBar.style.width = `${view.progress.value}%`;
+  progressStage.textContent = view.progress.label;
+  formError.textContent = view.error;
+  formError.hidden = !view.error;
+  authIntentStatus.textContent = view.auth;
+  authIntentStatus.hidden = !view.auth;
+}
+
+function setProgress(value, key, { hidden } = {}) {
   const bounded = Math.max(0, Math.min(100, Math.round(value)));
-  progressValue = bounded;
-  progressPercent.textContent = `${bounded}%`;
-  progressBar.style.width = `${bounded}%`;
-  if (label) progressStage.textContent = label;
+  uiState.setProgress({ value: bounded, key, hidden });
+  renderUiState();
 }
 
 function clearProgressTimer() {
@@ -400,17 +419,17 @@ function clearProgressTimer() {
 
 function startProgress() {
   clearProgressTimer();
-  searchProgress.hidden = false;
   progressStageIndex = 0;
   progressHoldTicks = 0;
-  setProgress(1, t(PROGRESS_STAGES[0].key));
+  setProgress(1, PROGRESS_STAGES[0].key, { hidden: false });
 
   progressTimer = window.setInterval(() => {
     const stage = PROGRESS_STAGES[progressStageIndex];
-    if (progressValue < stage.target) {
-      const distance = stage.target - progressValue;
+    const progress = uiState.progress();
+    if (progress.value < stage.target) {
+      const distance = stage.target - progress.value;
       const increment = Math.max(1, Math.ceil(distance / 4));
-      setProgress(Math.min(stage.target, progressValue + increment), t(stage.key));
+      setProgress(Math.min(stage.target, progress.value + increment), stage.key);
       return;
     }
 
@@ -419,7 +438,7 @@ function startProgress() {
       if (progressHoldTicks >= 2) {
         progressStageIndex += 1;
         progressHoldTicks = 0;
-        setProgress(progressValue, t(PROGRESS_STAGES[progressStageIndex].key));
+        setProgress(progress.value, PROGRESS_STAGES[progressStageIndex].key);
       }
     }
   }, 300);
@@ -427,33 +446,28 @@ function startProgress() {
 
 function completeProgress() {
   clearProgressTimer();
-  setProgress(100, t('progress.ready'));
+  setProgress(100, 'progress.ready', { hidden: false });
 }
 
 function failProgress() {
   clearProgressTimer();
-  if (!searchProgress.hidden) progressStage.textContent = t('progress.stopped');
+  const progress = uiState.progress();
+  if (!progress.hidden) setProgress(progress.value, 'progress.stopped');
 }
 
 function setBusy(busy) {
-  submitButton.disabled = busy;
-  ideaInput.disabled = busy;
-  exampleButton.disabled = busy;
-  for (const chip of exampleChips) chip.disabled = busy;
-  submitButton.replaceChildren(
-    document.createTextNode(busy ? t('form.scanning') : t('form.submit')),
-    document.createTextNode(busy ? '' : ' →'),
-  );
+  uiState.setBusy(busy);
+  renderUiState();
 }
 
-function showError(message) {
-  formError.textContent = message;
-  formError.hidden = false;
+function showError(key, params) {
+  uiState.setError(key, params);
+  renderUiState();
 }
 
 function clearError() {
-  formError.textContent = '';
-  formError.hidden = true;
+  uiState.clearError();
+  renderUiState();
 }
 
 function updateCharacterCount() {
@@ -477,7 +491,7 @@ form.addEventListener('submit', async (event) => {
   clearError();
   const idea = ideaInput.value.trim();
   if (idea.length < 20) {
-    showError(t('error.tooShort'));
+    showError('error.tooShort');
     ideaInput.focus();
     return;
   }
@@ -491,12 +505,12 @@ form.addEventListener('submit', async (event) => {
       body: JSON.stringify({ idea }),
     });
     const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error?.message ?? t('error.analysis'));
+    if (!response.ok) throw new Error('analysis-failed');
     completeProgress();
     renderReport(payload.data ?? payload);
   } catch (error) {
     failProgress();
-    showError(error instanceof Error ? error.message : t('error.analysis'));
+    showError('error.analysis');
   } finally {
     setBusy(false);
   }
@@ -576,9 +590,10 @@ initWorkspaceNavigation({
   sidebar: document.querySelector('#workspace-nav'),
   menuButton: document.querySelector('#workspace-menu-button'),
   authIntentHandler(intent) {
-    const intentLabel = t(`auth.intent.${intent}`);
-    authIntentStatus.textContent = t('auth.unavailable', { intent: intentLabel });
+    uiState.setAuthIntent(intent);
+    renderUiState();
   },
 });
+renderUiState();
 updateCharacterCount();
 loadCorpusStatus();

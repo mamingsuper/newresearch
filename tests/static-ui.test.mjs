@@ -37,6 +37,13 @@ test('browser renderer avoids unsafe HTML interpolation', async () => {
   assert.match(i18n, /'report\.originalProgram': 'Original program ↗'/);
 });
 
+test('analysis failures map service responses to closed dictionary keys', async () => {
+  const script = await readFile(path.join(publicDir, 'app.js'), 'utf8');
+
+  assert.doesNotMatch(script, /payload\.error/);
+  assert.match(script, /showError\('error\.analysis'\)/);
+});
+
 test('server serves the workbench and blocks path traversal', async () => {
   const services = {
     mode: 'mock',
@@ -96,7 +103,7 @@ test('idea radar landing page is a centered query-first research workbench', asy
   assert.match(script, /target:\s*90/);
   assert.match(script, /target:\s*94/);
   assert.doesNotMatch(script, /PROGRESS_STAGES[\s\S]*target:\s*100/);
-  assert.match(script, /function\s+completeProgress\s*\(\s*\)[\s\S]*100[\s\S]*t\('progress\.ready'\)/);
+  assert.match(script, /function\s+completeProgress\s*\(\s*\)[\s\S]*100[\s\S]*'progress\.ready'/);
   assert.match(i18n, /'progress\.ready': 'Report ready'/);
   assert.match(script, /if\s*\(!response\.ok\)[\s\S]*throw[\s\S]*completeProgress\(\)/);
 
