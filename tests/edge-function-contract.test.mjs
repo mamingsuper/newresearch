@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const sharedUrl = new URL('../supabase/functions/_shared/idea-radar.ts', import.meta.url);
 const analyzeUrl = new URL('../supabase/functions/analyze-idea/index.ts', import.meta.url);
+const corpusStatusUrl = new URL('../supabase/functions/corpus-status/index.ts', import.meta.url);
 
 test('analyze-idea Edge Function enforces the public beta evidence contract', async () => {
   const [shared, analyze] = await Promise.all([
@@ -43,4 +44,26 @@ test('analyze-idea Edge Function enforces the public beta evidence contract', as
   assert.match(source, /Access-Control-Allow-Origin/i);
   assert.doesNotMatch(source, /console\.(log|error|warn)\([^\n]*(idea|body|clientNetwork)/i);
   assert.doesNotMatch(source, /providerBody|responseBody/);
+});
+
+test('corpus-status exposes only cacheable public corpus metadata', async () => {
+  const [shared, status] = await Promise.all([
+    readFile(sharedUrl, 'utf8'),
+    readFile(corpusStatusUrl, 'utf8'),
+  ]);
+  const source = `${shared}\n${status}`;
+
+  assert.match(source, /req\.method\s*===\s*['"]OPTIONS['"]/);
+  assert.match(source, /req\.method\s*!==\s*['"]GET['"]/);
+  assert.match(source, /getCorpusStats/);
+  assert.match(source, /ready/);
+  assert.match(source, /paperCount/);
+  assert.match(source, /papersWithAbstract/);
+  assert.match(source, /embeddedPaperCount/);
+  assert.match(source, /pendingEmbeddingCount/);
+  assert.match(source, /failedEmbeddingCount/);
+  assert.match(source, /conferences/);
+  assert.match(source, /public,\s*max-age=60/i);
+  assert.match(source, /Access-Control-Allow-Origin/i);
+  assert.doesNotMatch(status, /serviceRole|SUPABASE_SERVICE_ROLE_KEY|ingestion_rejections|last_error|raw_/i);
 });
