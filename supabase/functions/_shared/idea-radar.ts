@@ -311,6 +311,7 @@ async function analyzeWithOpenAI(idea: string, rows: EvidenceRow[], stats: Corpu
     },
     body: JSON.stringify({
       model: ANALYSIS_MODEL,
+      reasoning: { effort: 'minimal' },
       store: false,
       max_output_tokens: 1800,
       input: [
