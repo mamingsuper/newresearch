@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const publicDir = path.join(root, 'public');
 const outputDir = path.join(root, 'pages-dist');
+const configToken = '__PUBLIC_SUPABASE_PUBLISHABLE_KEY__';
+const publishableKey = process.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ?? '';
 const textExtensions = new Set(['.html', '.css', '.js', '.json', '.txt', '.svg']);
 const secretPatterns = [
   /OPENAI_API_KEY/i,
@@ -26,9 +28,22 @@ async function walk(directory) {
   return files;
 }
 
+if (!/^sb_publishable_[A-Za-z0-9_-]+$/.test(publishableKey)) {
+  throw new Error('PUBLIC_SUPABASE_PUBLISHABLE_KEY must be a non-empty sb_publishable_ value');
+}
+
+const configTemplate = await readFile(path.join(publicDir, 'config.template.js'), 'utf8');
+if (configTemplate.split(configToken).length !== 2) {
+  throw new Error('Public config template must contain exactly one publishable-key token');
+}
+
 await rm(outputDir, { recursive: true, force: true });
 await mkdir(outputDir, { recursive: true });
-await cp(publicDir, outputDir, { recursive: true });
+await cp(publicDir, outputDir, {
+  recursive: true,
+  filter: (source) => path.basename(source) !== 'config.template.js',
+});
+await writeFile(path.join(outputDir, 'config.js'), configTemplate.replace(configToken, publishableKey), 'utf8');
 await writeFile(path.join(outputDir, '.nojekyll'), '', 'utf8');
 
 const files = await walk(outputDir);

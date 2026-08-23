@@ -7,15 +7,17 @@
     "node": ">=22.9.0"
   },
   "dependencies": {
-    "@huggingface/transformers": "4.2.0"
+    "@huggingface/transformers": "4.2.0",
+    "@supabase/supabase-js": "2.112.3"
   },
   "scripts": {
-    "dev": "node --env-file-if-exists=.env src/server.mjs",
+    "browser:vendor": "node scripts/prepare-browser-vendor.mjs",
+    "dev": "npm run browser:vendor && node --env-file-if-exists=.env src/server.mjs",
     "start": "node --env-file-if-exists=.env src/server.mjs",
-    "test": "node --test",
+    "test": "npm run browser:vendor && node --test",
     "check": "node scripts/check-project.mjs",
-    "build": "node scripts/build.mjs",
-    "pages:build": "node scripts/build-pages.mjs",
+    "build": "npm run browser:vendor && node scripts/build.mjs",
+    "pages:build": "npm run browser:vendor && node scripts/build-pages.mjs",
     "import:snapshot": "node scripts/import-snapshot.mjs",
     "corpus:validate": "node scripts/corpus-validate.mjs",
     "corpus:load": "node --env-file-if-exists=.env scripts/corpus-load.mjs",

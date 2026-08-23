@@ -3,6 +3,7 @@
 node_modules/
 dist/
 pages-dist/
+public/vendor/
 coverage/
 .worktrees/
 .superpowers/
