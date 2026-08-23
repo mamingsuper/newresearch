@@ -11,7 +11,9 @@ test('workspace shell exposes focused navigation, responsive controls, and accou
   assert.match(html, /id="workspace-shell"/);
   assert.match(html, /id="workspace-nav"[^>]*aria-label="Workspace navigation"/);
   assert.match(html, /id="workspace-menu-button"[^>]*aria-controls="workspace-nav"[^>]*aria-expanded="false"/);
-  assert.match(html, /data-auth-intent="(?:saved-papers|conversations|sign-in)"/);
+  assert.match(html, /<button[^>]*data-auth-intent="saved-papers"[^>]*>\s*Saved papers\s*<\/button>/i);
+  assert.match(html, /<button[^>]*data-auth-intent="conversations"[^>]*>\s*Conversations\s*<\/button>/i);
+  assert.match(html, /<button[^>]*data-auth-intent="sign-in"[^>]*>\s*Sign in\s*<\/button>/i);
   for (const label of ['New analysis', 'Conference library', 'Saved papers', 'Conversations', 'Submit a program']) {
     assert.match(html, new RegExp(label, 'i'));
   }
@@ -27,9 +29,12 @@ test('essential typography meets the readable product contract', async () => {
   assert.match(css, /--font-label:\s*\.8125rem/);
   assert.match(css, /body\s*\{[\s\S]*font-size:\s*var\(--font-body\)/i);
   assert.match(css, /button,\s*input,\s*textarea,\s*select\s*\{[\s\S]*font-size:\s*var\(--font-control\)/i);
-  assert.match(css, /\.workspace-sidebar[\s\S]*font-size:\s*var\(--font-control\)/i);
-  assert.match(css, /table\s+(?:th|td)|\.table-cell/i);
-  assert.match(css, /(?:table\s+(?:th|td)|\.table-cell)[\s\S]*font-size:\s*var\(--font-(?:body|control|meta)\)/i);
+  const essentialBlocks = css.match(/(?:button,\s*input,\s*textarea,\s*select|\.workspace-sidebar\s+a,\s*\.workspace-sidebar\s+button|table\s+th,\s*table\s+td)\s*\{[^}]*\}/gi) ?? [];
+  assert.equal(essentialBlocks.length, 3);
+  for (const block of essentialBlocks) {
+    assert.match(block, /font-size:\s*var\(--font-control\)/i);
+    assert.doesNotMatch(block, /font-size:\s*(?:0?\.[0-9]+|[0-9]+px)\s*;/i);
+  }
   assert.match(css, /\.paper-citation-line[\s\S]*font-size:\s*var\(--font-meta\)/i);
 });
 
