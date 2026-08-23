@@ -40,7 +40,7 @@ export async function loadCorpus({ records, rejections = [], store, sourceLabel,
         await store.upsertEmbeddingJob({
           paperId: saved.id ?? existing?.id ?? paper.id,
           inputHash: nextInputHash,
-          model: 'text-embedding-3-small',
+          model: 'nomic-ai/nomic-embed-text-v1.5',
           dimensions: 512,
         });
         counts.embeddingJobsCreated += 1;
