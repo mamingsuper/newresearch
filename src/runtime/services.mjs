@@ -2,8 +2,8 @@ import { MockIdeaAnalyzer } from '../analysis/mock-analyzer.mjs';
 import { OpenAIAnalyzer } from '../analysis/openai-analyzer.mjs';
 import { SAMPLE_PAPERS } from '../fixtures/sample-papers.mjs';
 import { LocalPaperRetriever } from '../retrieval/local-retriever.mjs';
+import { NomicEmbeddingsClient } from '../retrieval/nomic-embeddings.mjs';
 import {
-  OpenAIEmbeddingsClient,
   SupabasePaperRetriever,
   SupabaseRpcClient,
 } from '../retrieval/supabase-retriever.mjs';
@@ -67,10 +67,8 @@ export function createServices(env = process.env, { fetchImpl = globalThis.fetch
       'Missing required environment variable: SUPABASE_SECRET_KEY (or legacy SUPABASE_SERVICE_ROLE_KEY)',
     );
   }
-  const embeddingClient = new OpenAIEmbeddingsClient({
-    apiKey: env.OPENAI_API_KEY,
-    model: env.OPENAI_EMBEDDING_MODEL ?? 'text-embedding-3-small',
-    fetchImpl,
+  const embeddingClient = new NomicEmbeddingsClient({
+    model: env.NOMIC_EMBEDDING_MODEL ?? 'nomic-ai/nomic-embed-text-v1.5',
   });
   const rpcClient = new SupabaseRpcClient({
     url: env.SUPABASE_URL,
