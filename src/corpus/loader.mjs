@@ -1,6 +1,9 @@
 import { validatePaperRecord } from '../domain/schema.mjs';
 import { embeddingInputHash } from './embedding-text.mjs';
 
+const PRODUCTION_EMBEDDING_MODEL = 'text-embedding-3-small';
+const PRODUCTION_EMBEDDING_DIMENSIONS = 512;
+
 export async function loadCorpus({ records, rejections = [], store, sourceLabel, inputSha256, sourceAdapter = 'canonical' }) {
   if (!Array.isArray(records)) throw new TypeError('records must be an array');
   if (!store) throw new TypeError('store is required');
@@ -40,8 +43,8 @@ export async function loadCorpus({ records, rejections = [], store, sourceLabel,
         await store.upsertEmbeddingJob({
           paperId: saved.id ?? existing?.id ?? paper.id,
           inputHash: nextInputHash,
-          model: 'nomic-ai/nomic-embed-text-v1.5',
-          dimensions: 512,
+          model: PRODUCTION_EMBEDDING_MODEL,
+          dimensions: PRODUCTION_EMBEDDING_DIMENSIONS,
         });
         counts.embeddingJobsCreated += 1;
       }
