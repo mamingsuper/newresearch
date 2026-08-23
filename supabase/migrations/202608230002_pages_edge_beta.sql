@@ -90,7 +90,7 @@ begin
   values
     (target_client_hash, 'minute', minute_start, 1, now()),
     (target_client_hash, 'hour', hour_start, 1, now())
-  on conflict (client_hash, window_kind, window_started_at)
+  on conflict on constraint beta_rate_limit_buckets_pkey
   do update set request_count = b.request_count + 1, updated_at = now();
 
   allowed := true;
