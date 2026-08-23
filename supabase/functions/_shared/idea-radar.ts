@@ -11,7 +11,7 @@ const EMBEDDING_MODEL = 'text-embedding-3-small';
 const EMBEDDING_DIMENSIONS = 512;
 const ANALYSIS_MODEL = 'gpt-5-mini';
 const ANALYSIS_MAX_OUTPUT_TOKENS = 1800;
-const MATCH_COUNT = 12;
+const MATCH_COUNT = 20;
 
 const nullableString = { anyOf: [{ type: 'string', maxLength: 160 }, { type: 'null' }] };
 
@@ -248,7 +248,7 @@ async function hybridSearch(idea: string, queryEmbedding: number[]): Promise<Evi
   const rows = await rpc('hybrid_search_papers', {
     query_text: idea,
     query_embedding: queryEmbedding,
-    match_count: 12,
+    match_count: 20,
   });
   if (!Array.isArray(rows)) throw new Error('invalid_hybrid_search_response');
   return rows.slice(0, MATCH_COUNT) as EvidenceRow[];
@@ -257,6 +257,46 @@ async function hybridSearch(idea: string, queryEmbedding: number[]): Promise<Evi
 function excerpt(value: unknown, maxLength = 300): string {
   const clean = String(value ?? '').replace(/\s+/g, ' ').trim();
   return clean.length <= maxLength ? clean : `${clean.slice(0, maxLength).trim()}…`;
+}
+
+function canonicalAuthorNames(authors: unknown): string[] {
+  if (!Array.isArray(authors)) return [];
+  return authors
+    .map((author) => typeof author === 'object' && author ? String((author as Record<string, unknown>).name ?? '').trim() : '')
+    .filter((name) => name && !/^unregistered participant$/i.test(name));
+}
+
+function surname(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return parts.at(-1) ?? name;
+}
+
+function authorYearLabel(row: EvidenceRow): string {
+  const names = canonicalAuthorNames(row.authors);
+  const year = Number(row.conference_year ?? 0);
+  if (names.length === 1) return `${surname(names[0])} ${year}`;
+  if (names.length === 2) return `${surname(names[0])} & ${surname(names[1])} ${year}`;
+  if (names.length >= 3) return `${surname(names[0])} et al. ${year}`;
+  return `${String(row.conference_name ?? row.conference_slug ?? 'Conference')} ${year}`.trim();
+}
+
+function relatedPapers(rows: EvidenceRow[]) {
+  return rows.map((row, index) => ({
+    paperId: String(row.id),
+    rank: index + 1,
+    score: Number(row.score ?? 0),
+    title: String(row.title ?? ''),
+    authors: Array.isArray(row.authors) ? row.authors : [],
+    authorYearLabel: authorYearLabel(row),
+    conference: `${String(row.conference_name ?? '')} ${Number(row.conference_year ?? 0)}`.trim(),
+    conferenceSlug: String(row.conference_slug ?? ''),
+    conferenceYear: Number(row.conference_year ?? 0),
+    abstract: String(row.abstract ?? ''),
+    keywords: Array.isArray(row.keywords) ? row.keywords : [],
+    division: row.division ? String(row.division) : null,
+    sessionTitle: row.session_title ? String(row.session_title) : null,
+    sourceUrl: String(row.source_url ?? ''),
+  }));
 }
 
 function corpusLabels(stats: CorpusStats): string {
@@ -269,6 +309,7 @@ function emptyEvidenceReport(idea: string, stats: CorpusStats) {
     ideaProfile: { summary: idea, topics: [], population: null, method: null, mechanisms: [] },
     coverageNotice: `No direct match was found in the currently indexed ${corpusLabels(stats)} corpus. This result does not establish that the idea is globally new or absent from journals, preprints, working papers, or other conferences.`,
     closestWork: [],
+    relatedPapers: [],
     innovationPaths: [],
     recommendedNextSteps: [
       'Try a shorter formulation centered on the main constructs and causal relationship.',
@@ -383,7 +424,29 @@ function groundClosestWork(report: Record<string, unknown>, rows: EvidenceRow[])
     }];
   });
 
-  return { ...report, closestWork: groundedClosestWork };
+  const groundedPaths = paths.map((item) => {
+    const path = item as Record<string, unknown>;
+    const ids = path.evidencePaperIds as unknown[];
+    const evidenceReferences = ids.map((id) => {
+      const row = evidenceById.get(String(id));
+      if (!row) throw new Error('unknown_paper_reference');
+      return {
+        paperId: String(row.id),
+        authorYearLabel: authorYearLabel(row),
+        title: String(row.title ?? ''),
+        conference: `${String(row.conference_name ?? '')} ${Number(row.conference_year ?? 0)}`.trim(),
+        sourceUrl: String(row.source_url ?? ''),
+      };
+    });
+    return { ...path, evidenceReferences };
+  });
+
+  return {
+    ...report,
+    closestWork: groundedClosestWork,
+    relatedPapers: relatedPapers(rows),
+    innovationPaths: groundedPaths,
+  };
 }
 
 function safeErrorStatus(error: unknown): { status: number; code: string; message: string } {

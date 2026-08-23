@@ -8,13 +8,29 @@ const characterCount = document.querySelector('#character-count');
 const reportSection = document.querySelector('#report-section');
 const reportRoot = document.querySelector('#report-root');
 const modeBadge = document.querySelector('#mode-badge');
-const corpusPaperCount = document.querySelector('#corpus-paper-count');
-const corpusVectorStatus = document.querySelector('#corpus-vector-status');
-const corpusSummary = document.querySelector('#corpus-summary');
-const workbenchState = document.querySelector('#workbench-state');
+const corpusLedger = document.querySelector('#corpus-ledger');
+const searchProgress = document.querySelector('#search-progress');
+const progressBar = document.querySelector('#progress-bar');
+const progressPercent = document.querySelector('#progress-percent');
+const progressStage = document.querySelector('#progress-stage');
 
 const EXAMPLE_IDEA =
   'I want to test whether AI literacy moderates the effect of generative-AI political messages on political trust among young adults, using a preregistered online experiment.';
+
+const PROGRESS_STAGES = [
+  { target: 5, label: 'Understanding the research question' },
+  { target: 20, label: 'Reading corpus scope: APSA 2026 + ICA 2026' },
+  { target: 35, label: 'Generating the query embedding' },
+  { target: 55, label: 'Running Hybrid vector + full-text retrieval' },
+  { target: 75, label: 'Ranking the most relevant papers' },
+  { target: 90, label: 'Generating evidence-grounded analysis' },
+  { target: 94, label: 'Finalizing grounded citations' },
+];
+
+let progressTimer = null;
+let progressValue = 0;
+let progressStageIndex = 0;
+let progressHoldTicks = 0;
 
 const configuredApiBase = window.__IDEA_RADAR_CONFIG__?.apiBaseUrl?.trim();
 const edgeApiBase = window.location.hostname === 'mamingsuper.github.io' && configuredApiBase
@@ -47,6 +63,17 @@ function formatCount(value) {
   return Number.isFinite(Number(value)) ? Number(value).toLocaleString('en-US') : '—';
 }
 
+function formatScore(value) {
+  const score = Number(value);
+  return Number.isFinite(score) ? score.toFixed(5) : '—';
+}
+
+function authorNames(authors) {
+  return asArray(authors)
+    .map((author) => author && typeof author === 'object' ? String(author.name ?? '').trim() : '')
+    .filter(Boolean);
+}
+
 function appendTextList(parent, items, className = 'plain-list') {
   const list = element('ul', { className });
   for (const item of asArray(items)) list.append(element('li', { text: item }));
@@ -75,60 +102,103 @@ function renderIdeaProfile(profile = {}) {
   return section;
 }
 
-function renderClosestWork(items) {
-  const evidenceItems = asArray(items);
+function renderRelatedPapers(items) {
+  const papers = asArray(items)
+    .slice()
+    .sort((left, right) => Number(left.rank ?? Number.MAX_SAFE_INTEGER) - Number(right.rank ?? Number.MAX_SAFE_INTEGER));
   const section = element('section', { className: 'report-block' });
-  const header = element('div', { className: 'section-heading' });
-  header.append(element('p', { className: 'card-kicker', text: 'Related papers' }));
-  header.append(element('h3', { text: evidenceItems.length ? `${evidenceItems.length} evidence records` : 'No direct match returned' }));
+  const header = element('div', { className: 'section-heading related-heading' });
+  header.append(element('p', { className: 'card-kicker', text: 'Ranked related papers' }));
+  const countLabel = papers.length === 20 ? 'Top 20 Hybrid RRF results' : `${papers.length} ranked evidence records`;
+  header.append(element('h3', { text: papers.length ? countLabel : 'No related paper returned' }));
   section.append(header);
 
-  if (!evidenceItems.length) {
-    section.append(
-      element('p', {
-        className: 'empty-state',
-        text: 'No sufficiently direct evidence was returned from this corpus. Try a more compact formulation or adjacent terminology.',
-      }),
-    );
+  const methodNote = element('p', {
+    className: 'ranking-note',
+    text: 'Ordered by the database Hybrid RRF ranking (semantic vector + full-text search). Scores are ranking signals, not calibrated probabilities.',
+  });
+  section.append(methodNote);
+
+  if (!papers.length) {
+    section.append(element('p', {
+      className: 'empty-state',
+      text: 'No sufficiently direct evidence was returned from this corpus. Try a more compact formulation or adjacent terminology.',
+    }));
     return section;
   }
 
-  const grid = element('div', { className: 'evidence-grid' });
-  evidenceItems.forEach((item, index) => {
-    const article = element('article', { className: 'evidence-card' });
-    article.append(element('span', { className: 'evidence-number', text: String(index + 1).padStart(2, '0') }));
-    const meta = element('div', { className: 'evidence-meta' });
-    meta.append(element('span', { text: item.conference ?? 'Conference record' }));
-    meta.append(element('span', { text: item.relationship ?? 'Related evidence' }));
-    article.append(meta);
-    article.append(element('h4', { text: item.title ?? 'Untitled paper' }));
+  const list = element('div', { className: 'related-paper-list' });
+  for (const paper of papers) {
+    const rank = Number.isInteger(Number(paper.rank)) ? Number(paper.rank) : list.childElementCount + 1;
+    const article = element('article', {
+      className: 'related-paper-card',
+      attributes: { 'data-paper-id': paper.paperId ?? '' },
+    });
 
-    const dimensions = element('div', { className: 'chip-row', attributes: { 'aria-label': 'Overlap dimensions' } });
-    for (const dimension of asArray(item.overlapDimensions)) {
-      dimensions.append(element('span', { className: 'chip', text: dimension }));
-    }
-    if (dimensions.childElementCount) article.append(dimensions);
-    if (item.evidence) article.append(element('blockquote', { text: item.evidence }));
+    const rankColumn = element('div', { className: 'paper-rank' });
+    rankColumn.append(
+      element('span', { className: 'paper-rank-number', text: `#${String(rank).padStart(2, '0')}` }),
+      element('span', { className: 'paper-score-label', text: 'relevance score' }),
+      element('strong', { className: 'paper-score', text: formatScore(paper.score) }),
+    );
 
-    if (item.sourceUrl) {
-      const link = element('a', {
+    const body = element('div', { className: 'paper-body' });
+    const citationLine = element('div', { className: 'paper-citation-line' });
+    citationLine.append(
+      element('strong', { text: paper.authorYearLabel ?? 'Conference paper' }),
+      element('span', { text: paper.conference ?? 'Conference record' }),
+    );
+    body.append(citationLine);
+    body.append(element('h4', { text: paper.title ?? 'Untitled paper' }));
+
+    const names = authorNames(paper.authors);
+    if (names.length) body.append(element('p', { className: 'paper-authors', text: names.join(', ') }));
+
+    const chips = element('div', { className: 'paper-detail-chips' });
+    if (paper.division) chips.append(element('span', { text: paper.division }));
+    for (const keyword of asArray(paper.keywords).slice(0, 8)) chips.append(element('span', { text: keyword }));
+    if (chips.childElementCount) body.append(chips);
+
+    body.append(element('p', { className: 'abstract-label', text: 'Abstract' }));
+    body.append(element('p', { className: 'paper-abstract', text: paper.abstract ?? 'Abstract unavailable.' }));
+
+    if (paper.sourceUrl) {
+      body.append(element('a', {
         className: 'source-link',
         text: 'Original program ↗',
         attributes: {
-          href: item.sourceUrl,
+          href: paper.sourceUrl,
           target: '_blank',
           rel: 'noreferrer noopener',
         },
-      });
-      article.append(link);
+      }));
     }
-    grid.append(article);
-  });
-  section.append(grid);
+
+    article.append(rankColumn, body);
+    list.append(article);
+  }
+  section.append(list);
   return section;
 }
 
-function renderInnovationPaths(paths) {
+function resolveEvidenceReferences(path, relatedPapers) {
+  const provided = asArray(path.evidenceReferences);
+  if (provided.length) return provided;
+
+  const paperById = new Map(asArray(relatedPapers).map((paper) => [String(paper.paperId ?? ''), paper]));
+  return asArray(path.evidencePaperIds)
+    .map((paperId) => paperById.get(String(paperId)))
+    .filter(Boolean)
+    .map((paper) => ({
+      paperId: paper.paperId,
+      authorYearLabel: paper.authorYearLabel,
+      title: paper.title,
+      conference: paper.conference,
+      sourceUrl: paper.sourceUrl,
+    }));
+}
+
+function renderInnovationPaths(paths, relatedPapers) {
   const pathItems = asArray(paths);
   const section = element('section', { className: 'report-block' });
   const header = element('div', { className: 'section-heading' });
@@ -147,10 +217,31 @@ function renderInnovationPaths(paths) {
     item.append(element('div', { className: 'inference-label', text: 'Evidence-linked inference' }));
     item.append(element('h4', { text: path.title ?? 'Research direction' }));
     item.append(element('p', { text: path.rationale ?? '' }));
-    const grounding = asArray(path.evidencePaperTitles).length
-      ? path.evidencePaperTitles
-      : asArray(path.evidencePaperIds);
-    if (grounding.length) item.append(element('small', { text: `Grounded in: ${grounding.join(', ')}` }));
+
+    const references = resolveEvidenceReferences(path, relatedPapers);
+    if (references.length) {
+      const grounding = element('div', { className: 'grounding-references' });
+      grounding.append(element('span', { className: 'grounding-label', text: 'Grounded in' }));
+      for (const reference of references) {
+        const text = `${reference.authorYearLabel ?? 'Conference paper'} — ${reference.title ?? 'Untitled paper'}`;
+        const attributes = { 'data-paper-id': reference.paperId ?? '' };
+        if (reference.sourceUrl) {
+          grounding.append(element('a', {
+            className: 'grounding-reference',
+            text,
+            attributes: {
+              ...attributes,
+              href: reference.sourceUrl,
+              target: '_blank',
+              rel: 'noreferrer noopener',
+            },
+          }));
+        } else {
+          grounding.append(element('span', { className: 'grounding-reference', text, attributes }));
+        }
+      }
+      item.append(grounding);
+    }
     list.append(item);
   }
   section.append(list);
@@ -165,8 +256,8 @@ function renderReport(report) {
       text: report.coverageNotice ?? 'This report is limited to the currently indexed conference corpus.',
     }),
     renderIdeaProfile(report.ideaProfile),
-    renderClosestWork(report.closestWork),
-    renderInnovationPaths(report.innovationPaths),
+    renderRelatedPapers(report.relatedPapers),
+    renderInnovationPaths(report.innovationPaths, report.relatedPapers),
   );
 
   const finalGrid = element('div', { className: 'final-grid' });
@@ -181,8 +272,59 @@ function renderReport(report) {
   reportRoot.append(finalGrid);
 
   reportSection.hidden = false;
-  workbenchState.textContent = 'Report ready';
   reportSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function setProgress(value, label) {
+  const bounded = Math.max(0, Math.min(100, Math.round(value)));
+  progressValue = bounded;
+  progressPercent.textContent = `${bounded}%`;
+  progressBar.style.width = `${bounded}%`;
+  if (label) progressStage.textContent = label;
+}
+
+function clearProgressTimer() {
+  if (progressTimer !== null) {
+    window.clearInterval(progressTimer);
+    progressTimer = null;
+  }
+}
+
+function startProgress() {
+  clearProgressTimer();
+  searchProgress.hidden = false;
+  progressStageIndex = 0;
+  progressHoldTicks = 0;
+  setProgress(1, PROGRESS_STAGES[0].label);
+
+  progressTimer = window.setInterval(() => {
+    const stage = PROGRESS_STAGES[progressStageIndex];
+    if (progressValue < stage.target) {
+      const distance = stage.target - progressValue;
+      const increment = Math.max(1, Math.ceil(distance / 4));
+      setProgress(Math.min(stage.target, progressValue + increment), stage.label);
+      return;
+    }
+
+    if (progressStageIndex < PROGRESS_STAGES.length - 1) {
+      progressHoldTicks += 1;
+      if (progressHoldTicks >= 2) {
+        progressStageIndex += 1;
+        progressHoldTicks = 0;
+        setProgress(progressValue, PROGRESS_STAGES[progressStageIndex].label);
+      }
+    }
+  }, 300);
+}
+
+function completeProgress() {
+  clearProgressTimer();
+  setProgress(100, 'Report ready');
+}
+
+function failProgress() {
+  clearProgressTimer();
+  if (!searchProgress.hidden) progressStage.textContent = 'Scan stopped before completion';
 }
 
 function setBusy(busy) {
@@ -191,13 +333,11 @@ function setBusy(busy) {
   exampleButton.disabled = busy;
   for (const chip of exampleChips) chip.disabled = busy;
   submitButton.textContent = busy ? 'Scanning corpus…' : 'Start Testing →';
-  if (busy) workbenchState.textContent = 'Analyzing…';
 }
 
 function showError(message) {
   formError.textContent = message;
   formError.hidden = false;
-  workbenchState.textContent = 'Needs input';
 }
 
 function clearError() {
@@ -232,6 +372,7 @@ form.addEventListener('submit', async (event) => {
   }
 
   setBusy(true);
+  startProgress();
   try {
     const response = await fetch(apiEndpoint('analyze-idea', '/api/analyze'), {
       method: 'POST',
@@ -240,8 +381,10 @@ form.addEventListener('submit', async (event) => {
     });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error?.message ?? 'The analysis could not be completed.');
+    completeProgress();
     renderReport(payload.data ?? payload);
   } catch (error) {
+    failProgress();
     showError(error instanceof Error ? error.message : 'The analysis could not be completed.');
   } finally {
     setBusy(false);
@@ -252,6 +395,7 @@ function normalizeCorpus(payload) {
   const candidate = payload?.data?.stats ?? payload?.data ?? payload?.stats ?? payload ?? {};
   return {
     paperCount: candidate.paperCount ?? candidate.paper_count,
+    papersWithAbstract: candidate.papersWithAbstract ?? candidate.papers_with_abstract,
     embeddedPaperCount: candidate.embeddedPaperCount ?? candidate.embedded_count,
     pendingEmbeddingCount: candidate.pendingEmbeddingCount ?? candidate.pending_embedding_count,
     ready: candidate.ready,
@@ -261,27 +405,20 @@ function normalizeCorpus(payload) {
 
 function renderCorpusStatus(corpus, mode) {
   const count = Number(corpus.paperCount);
-  corpusPaperCount.textContent = Number.isInteger(count) ? formatCount(count) : '—';
-
-  const embedded = Number(corpus.embeddedPaperCount);
-  const pending = Number(corpus.pendingEmbeddingCount);
-  if (corpus.ready === true || (Number.isInteger(count) && count > 0 && embedded === count)) {
-    corpusVectorStatus.textContent = Number.isInteger(embedded) ? `${formatCount(embedded)} ready` : 'ready';
-  } else if (Number.isInteger(pending) && pending > 0) {
-    corpusVectorStatus.textContent = `${formatCount(pending)} pending`;
-  } else {
-    corpusVectorStatus.textContent = 'status unavailable';
-  }
-
-  const labels = corpus.conferences.map((conference) => {
+  const abstracts = Number(corpus.papersWithAbstract);
+  const conferenceParts = corpus.conferences.map((conference) => {
     if (typeof conference === 'string') return conference;
     const name = conference.name ?? conference.slug?.toUpperCase();
     const year = conference.year;
-    return [name, year].filter(Boolean).join(' ');
+    const papers = Number(conference.papers);
+    const label = [name, year].filter(Boolean).join(' ');
+    return Number.isInteger(papers) ? `${label} · ${formatCount(papers)} papers` : label;
   }).filter(Boolean);
-  corpusSummary.textContent = labels.length
-    ? `${labels.join(' · ')}. Corpus-scoped retrieval; no global novelty claim.`
-    : 'Corpus-scoped retrieval; no global novelty claim.';
+
+  if (conferenceParts.length) {
+    const abstractCount = Number.isInteger(abstracts) ? abstracts : count;
+    corpusLedger.textContent = `${conferenceParts.join(' + ')}${Number.isInteger(abstractCount) ? ` = ${formatCount(abstractCount)} abstracts` : ''}`;
+  }
 
   const modeLabel = mode === 'live' ? 'Live corpus' : mode === 'mock' ? 'Demo corpus' : 'Corpus';
   modeBadge.replaceChildren(

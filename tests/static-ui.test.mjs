@@ -21,9 +21,10 @@ test('workbench HTML exposes the required accessible landmarks and Pages-safe as
   assert.match(html, /id="report-root"/i);
   assert.match(html, /currently indexed|corpus/i);
   assert.match(html, /href="\.\/styles\.css"/i);
+  assert.match(html, /href="\.\/results-v2\.css"/i);
   assert.match(html, /src="\.\/config\.js"/i);
   assert.match(html, /type="module"[^>]+src="\.\/app\.js"/i);
-  assert.doesNotMatch(html, /(?:href|src)="\/(?:styles\.css|app\.js|config\.js)"/i);
+  assert.doesNotMatch(html, /(?:href|src)="\/(?:styles\.css|results-v2\.css|app\.js|config\.js)"/i);
 });
 
 test('browser renderer avoids unsafe HTML interpolation', async () => {
@@ -61,18 +62,42 @@ test('server serves the workbench and blocks path traversal', async () => {
   }
 });
 
-test('idea radar landing page exposes the editorial live-testing layout', async () => {
+test('idea radar landing page is a centered query-first research workbench', async () => {
   const html = await readFile(path.join(publicDir, 'index.html'), 'utf8');
   const styles = await readFile(path.join(publicDir, 'styles.css'), 'utf8');
   const script = await readFile(path.join(publicDir, 'app.js'), 'utf8');
 
-  assert.match(html, /class="hero-title"[^>]*>[\s\S]*Idea[\s\S]*Radar/i);
-  assert.match(html, /id="live-workbench"/i);
-  assert.match(html, /id="corpus-paper-count"/i);
-  assert.match(html, /Semantic Search/i);
-  assert.match(html, /Conference Papers/i);
+  assert.match(html, /Scan your research idea against the frontier/i);
+  assert.match(html, /APSA 2026/);
+  assert.match(html, /5,493 papers/);
+  assert.match(html, /ICA 2026/);
+  assert.match(html, /3,413 papers/);
+  assert.match(html, /8,906 abstracts/);
+  assert.match(html, /id="corpus-ledger"/i);
+  assert.match(html, /id="search-progress"/i);
+  assert.match(html, /id="progress-bar"/i);
+  assert.match(html, /id="progress-percent"/i);
+  assert.match(html, /id="progress-stage"/i);
+  assert.doesNotMatch(html, /id="live-workbench"/i);
   assert.match(html, /Start Testing/i);
   assert.match(html, /No global novelty claims/i);
+
+  assert.match(styles, /body\s*\{[\s\S]*font-size:\s*16px/i);
+  assert.match(styles, /\.query-hero\s*\{[\s\S]*max-width:\s*1080px/i);
+  assert.match(styles, /textarea\s*\{[\s\S]*min-height:\s*240px[\s\S]*font-size:\s*1\.125rem/i);
+
+  assert.match(script, /Understanding the research question/);
+  assert.match(script, /Reading corpus scope: APSA 2026 \+ ICA 2026/);
+  assert.match(script, /Generating the query embedding/);
+  assert.match(script, /Hybrid vector \+ full-text retrieval/);
+  assert.match(script, /Ranking the most relevant papers/);
+  assert.match(script, /Generating evidence-grounded analysis/);
+  assert.match(script, /Finalizing grounded citations/);
+  assert.match(script, /target:\s*90/);
+  assert.match(script, /target:\s*94/);
+  assert.doesNotMatch(script, /PROGRESS_STAGES[\s\S]*target:\s*100/);
+  assert.match(script, /function\s+completeProgress\s*\(\s*\)[\s\S]*100[\s\S]*Report ready/);
+  assert.match(script, /if\s*\(!response\.ok\)[\s\S]*throw[\s\S]*completeProgress\(\)/);
 
   assert.match(styles, /--paper:\s*#f6f0e4/i);
   assert.match(styles, /--blue:\s*#2f5bff/i);
@@ -86,4 +111,21 @@ test('idea radar landing page exposes the editorial live-testing layout', async 
   assert.match(script, /corpus-status/);
   assert.match(script, /\/api\/analyze/);
   assert.match(script, /\/api\/corpus/);
+});
+
+test('results render canonical ranked papers with full abstracts and readable citations', async () => {
+  const script = await readFile(path.join(publicDir, 'app.js'), 'utf8');
+  const resultStyles = await readFile(path.join(publicDir, 'results-v2.css'), 'utf8');
+
+  assert.match(script, /relatedPapers/);
+  assert.match(script, /function\s+renderRelatedPapers/);
+  assert.match(script, /authorYearLabel/);
+  assert.match(script, /paper\.abstract/);
+  assert.match(script, /relevance score/i);
+  assert.match(script, /evidenceReferences/);
+  assert.match(script, /data-paper-id/);
+  assert.doesNotMatch(script, /renderClosestWork\(report\.closestWork\)/);
+  assert.doesNotMatch(script, /Grounded in:[^\n]*evidencePaperIds/);
+  assert.match(resultStyles, /\.related-paper-list\s*\{[\s\S]*grid-template-columns:\s*1fr/i);
+  assert.match(resultStyles, /\.paper-abstract\s*\{[\s\S]*font-size:\s*1(?:\.0)?rem[\s\S]*line-height:\s*1\.65/i);
 });

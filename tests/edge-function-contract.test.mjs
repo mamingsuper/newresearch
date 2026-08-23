@@ -25,7 +25,15 @@ test('analyze-idea Edge Function enforces the public beta evidence contract', as
   assert.match(source, /consume_beta_rate_limit/);
   assert.match(source, /text-embedding-3-small/);
   assert.match(source, /dimensions\s*:\s*512/);
-  assert.match(source, /match_count\s*:\s*12/);
+  assert.match(source, /match_count\s*:\s*20/);
+  assert.doesNotMatch(source, /match_count\s*:\s*12/);
+  assert.match(source, /relatedPapers/);
+  assert.match(source, /authorYearLabel/);
+  assert.match(source, /abstract:\s*String\(row\.abstract/);
+  assert.match(source, /rank:\s*index\s*\+\s*1/);
+  assert.match(source, /score:\s*Number\(row\.score/);
+  assert.match(source, /authors/);
+  assert.match(source, /evidenceReferences/);
   assert.match(source, /gpt-5-mini/);
   assert.match(source, /max_output_tokens\s*:\s*1800/);
   assert.match(source, /reasoning\s*:\s*\{\s*effort\s*:\s*['"]minimal['"]\s*\}/);
@@ -35,7 +43,6 @@ test('analyze-idea Edge Function enforces the public beta evidence contract', as
   assert.match(source, /required:\s*\['paperId',\s*'relationship',\s*'overlapDimensions'\]/);
   assert.match(source, /maxItems\s*:\s*5/);
   assert.match(source, /maxItems\s*:\s*3/);
-  assert.match(source, /Canonical title, conference, evidence excerpt, and source URL/i);
   assert.match(source, /allowedPaperIds/i);
   assert.match(source, /canonical|groundClosestWork/i);
   assert.match(source, /Cache-Control|cache-control/i);
