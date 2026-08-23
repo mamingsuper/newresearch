@@ -63,6 +63,17 @@ function formatCount(value) {
   return Number.isFinite(Number(value)) ? Number(value).toLocaleString('en-US') : '—';
 }
 
+function formatScore(value) {
+  const score = Number(value);
+  return Number.isFinite(score) ? score.toFixed(5) : '—';
+}
+
+function authorNames(authors) {
+  return asArray(authors)
+    .map((author) => author && typeof author === 'object' ? String(author.name ?? '').trim() : '')
+    .filter(Boolean);
+}
+
 function appendTextList(parent, items, className = 'plain-list') {
   const list = element('ul', { className });
   for (const item of asArray(items)) list.append(element('li', { text: item }));
@@ -91,60 +102,103 @@ function renderIdeaProfile(profile = {}) {
   return section;
 }
 
-function renderClosestWork(items) {
-  const evidenceItems = asArray(items);
+function renderRelatedPapers(items) {
+  const papers = asArray(items)
+    .slice()
+    .sort((left, right) => Number(left.rank ?? Number.MAX_SAFE_INTEGER) - Number(right.rank ?? Number.MAX_SAFE_INTEGER));
   const section = element('section', { className: 'report-block' });
-  const header = element('div', { className: 'section-heading' });
-  header.append(element('p', { className: 'card-kicker', text: 'Related papers' }));
-  header.append(element('h3', { text: evidenceItems.length ? `${evidenceItems.length} evidence records` : 'No direct match returned' }));
+  const header = element('div', { className: 'section-heading related-heading' });
+  header.append(element('p', { className: 'card-kicker', text: 'Ranked related papers' }));
+  const countLabel = papers.length === 20 ? 'Top 20 Hybrid RRF results' : `${papers.length} ranked evidence records`;
+  header.append(element('h3', { text: papers.length ? countLabel : 'No related paper returned' }));
   section.append(header);
 
-  if (!evidenceItems.length) {
-    section.append(
-      element('p', {
-        className: 'empty-state',
-        text: 'No sufficiently direct evidence was returned from this corpus. Try a more compact formulation or adjacent terminology.',
-      }),
-    );
+  const methodNote = element('p', {
+    className: 'ranking-note',
+    text: 'Ordered by the database Hybrid RRF ranking (semantic vector + full-text search). Scores are ranking signals, not calibrated probabilities.',
+  });
+  section.append(methodNote);
+
+  if (!papers.length) {
+    section.append(element('p', {
+      className: 'empty-state',
+      text: 'No sufficiently direct evidence was returned from this corpus. Try a more compact formulation or adjacent terminology.',
+    }));
     return section;
   }
 
-  const grid = element('div', { className: 'evidence-grid' });
-  evidenceItems.forEach((item, index) => {
-    const article = element('article', { className: 'evidence-card' });
-    article.append(element('span', { className: 'evidence-number', text: String(index + 1).padStart(2, '0') }));
-    const meta = element('div', { className: 'evidence-meta' });
-    meta.append(element('span', { text: item.conference ?? 'Conference record' }));
-    meta.append(element('span', { text: item.relationship ?? 'Related evidence' }));
-    article.append(meta);
-    article.append(element('h4', { text: item.title ?? 'Untitled paper' }));
+  const list = element('div', { className: 'related-paper-list' });
+  for (const paper of papers) {
+    const rank = Number.isInteger(Number(paper.rank)) ? Number(paper.rank) : list.childElementCount + 1;
+    const article = element('article', {
+      className: 'related-paper-card',
+      attributes: { 'data-paper-id': paper.paperId ?? '' },
+    });
 
-    const dimensions = element('div', { className: 'chip-row', attributes: { 'aria-label': 'Overlap dimensions' } });
-    for (const dimension of asArray(item.overlapDimensions)) {
-      dimensions.append(element('span', { className: 'chip', text: dimension }));
-    }
-    if (dimensions.childElementCount) article.append(dimensions);
-    if (item.evidence) article.append(element('blockquote', { text: item.evidence }));
+    const rankColumn = element('div', { className: 'paper-rank' });
+    rankColumn.append(
+      element('span', { className: 'paper-rank-number', text: `#${String(rank).padStart(2, '0')}` }),
+      element('span', { className: 'paper-score-label', text: 'relevance score' }),
+      element('strong', { className: 'paper-score', text: formatScore(paper.score) }),
+    );
 
-    if (item.sourceUrl) {
-      const link = element('a', {
+    const body = element('div', { className: 'paper-body' });
+    const citationLine = element('div', { className: 'paper-citation-line' });
+    citationLine.append(
+      element('strong', { text: paper.authorYearLabel ?? 'Conference paper' }),
+      element('span', { text: paper.conference ?? 'Conference record' }),
+    );
+    body.append(citationLine);
+    body.append(element('h4', { text: paper.title ?? 'Untitled paper' }));
+
+    const names = authorNames(paper.authors);
+    if (names.length) body.append(element('p', { className: 'paper-authors', text: names.join(', ') }));
+
+    const chips = element('div', { className: 'paper-detail-chips' });
+    if (paper.division) chips.append(element('span', { text: paper.division }));
+    for (const keyword of asArray(paper.keywords).slice(0, 8)) chips.append(element('span', { text: keyword }));
+    if (chips.childElementCount) body.append(chips);
+
+    body.append(element('p', { className: 'abstract-label', text: 'Abstract' }));
+    body.append(element('p', { className: 'paper-abstract', text: paper.abstract ?? 'Abstract unavailable.' }));
+
+    if (paper.sourceUrl) {
+      body.append(element('a', {
         className: 'source-link',
         text: 'Original program ↗',
         attributes: {
-          href: item.sourceUrl,
+          href: paper.sourceUrl,
           target: '_blank',
           rel: 'noreferrer noopener',
         },
-      });
-      article.append(link);
+      }));
     }
-    grid.append(article);
-  });
-  section.append(grid);
+
+    article.append(rankColumn, body);
+    list.append(article);
+  }
+  section.append(list);
   return section;
 }
 
-function renderInnovationPaths(paths) {
+function resolveEvidenceReferences(path, relatedPapers) {
+  const provided = asArray(path.evidenceReferences);
+  if (provided.length) return provided;
+
+  const paperById = new Map(asArray(relatedPapers).map((paper) => [String(paper.paperId ?? ''), paper]));
+  return asArray(path.evidencePaperIds)
+    .map((paperId) => paperById.get(String(paperId)))
+    .filter(Boolean)
+    .map((paper) => ({
+      paperId: paper.paperId,
+      authorYearLabel: paper.authorYearLabel,
+      title: paper.title,
+      conference: paper.conference,
+      sourceUrl: paper.sourceUrl,
+    }));
+}
+
+function renderInnovationPaths(paths, relatedPapers) {
   const pathItems = asArray(paths);
   const section = element('section', { className: 'report-block' });
   const header = element('div', { className: 'section-heading' });
@@ -163,10 +217,31 @@ function renderInnovationPaths(paths) {
     item.append(element('div', { className: 'inference-label', text: 'Evidence-linked inference' }));
     item.append(element('h4', { text: path.title ?? 'Research direction' }));
     item.append(element('p', { text: path.rationale ?? '' }));
-    const grounding = asArray(path.evidencePaperTitles).length
-      ? path.evidencePaperTitles
-      : asArray(path.evidencePaperIds);
-    if (grounding.length) item.append(element('small', { text: `Grounded in: ${grounding.join(', ')}` }));
+
+    const references = resolveEvidenceReferences(path, relatedPapers);
+    if (references.length) {
+      const grounding = element('div', { className: 'grounding-references' });
+      grounding.append(element('span', { className: 'grounding-label', text: 'Grounded in' }));
+      for (const reference of references) {
+        const text = `${reference.authorYearLabel ?? 'Conference paper'} — ${reference.title ?? 'Untitled paper'}`;
+        const attributes = { 'data-paper-id': reference.paperId ?? '' };
+        if (reference.sourceUrl) {
+          grounding.append(element('a', {
+            className: 'grounding-reference',
+            text,
+            attributes: {
+              ...attributes,
+              href: reference.sourceUrl,
+              target: '_blank',
+              rel: 'noreferrer noopener',
+            },
+          }));
+        } else {
+          grounding.append(element('span', { className: 'grounding-reference', text, attributes }));
+        }
+      }
+      item.append(grounding);
+    }
     list.append(item);
   }
   section.append(list);
@@ -181,8 +256,8 @@ function renderReport(report) {
       text: report.coverageNotice ?? 'This report is limited to the currently indexed conference corpus.',
     }),
     renderIdeaProfile(report.ideaProfile),
-    renderClosestWork(report.closestWork),
-    renderInnovationPaths(report.innovationPaths),
+    renderRelatedPapers(report.relatedPapers),
+    renderInnovationPaths(report.innovationPaths, report.relatedPapers),
   );
 
   const finalGrid = element('div', { className: 'final-grid' });
