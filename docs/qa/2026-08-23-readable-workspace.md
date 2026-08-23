@@ -52,13 +52,28 @@ acceptance.
 | Mobile result cards and abstract overflow | 390 × 844 Chinese deterministic contract fixture | PASS (non-production retrieval evidence) | `lang=zh`; 20 cards and unique IDs; abstract font 17px; abstract/card/page overflow 0; no visible result offenders; action min-height 44.390625px. |
 | Reduced motion | Pages artifact with `prefers-reduced-motion: reduce` | PASS | `matchMedia` matched; `html` scroll behavior was `auto`; workspace nav, progress bar, and primary-button transition durations were 0s; results-v2 loaded the no-motion abstract-preview rule. |
 
-The previously rendered drawer observation above remains scoped to geometry and
-Escape focus return. The added executable behavior contract verifies that the
-closed mobile drawer is inert, opening focuses its first navigation control,
-closing restores menu focus, and moving to the desktop media query removes
-`inert`. Report focus order, globally visible feedback placement, and contrast
-are likewise recorded as automated acceptance rather than new rendered-browser
-observations.
+### Final focus regression follow-up
+
+The controller ran a second in-app-browser pass against the final Stage A focus
+implementation from product commit
+`6a5e7fdec7de902c9a7ba013845d9d7321e14ace`. These are rendered DOM and actual
+`document.activeElement` observations, not production-retrieval evidence.
+
+| Check | Viewport / setting | Result | Rendered DOM / focus evidence |
+| --- | --- | --- | --- |
+| Closed mobile navigation | 390 × 844, Chinese | PASS | `data-open=false`; the sidebar had the `inert` attribute. |
+| Open focus placement | 390 × 844, Chinese | PASS | Clicking Menu set `data-open=true`, removed `inert`, and made the first navigation link, `新分析`, the actual `document.activeElement` inside the sidebar. |
+| Escape focus return | 390 × 844, Chinese | PASS | Pressing Escape while the first link was focused set `data-open=false`, restored `inert`, and moved `document.activeElement` to `#workspace-menu-button` outside the sidebar. |
+| Account-intent feedback while closed | 390 × 844, Chinese | PASS | Opening and selecting Saved papers closed and inerted the sidebar. `#auth-intent-status` remained outside the sidebar with `hidden=false`, was visible near `top ≈ 80px`, and read `收藏论文 即将推出。本阶段尚不支持登录或保存工作。` |
+| Initial report focus and reduced-motion scroll | 390 × 844 | PASS | Calling the imported product `presentRenderedReport` helper on the real `#report-section` with `scroll=true` and reduced motion set `hidden=false`; `document.activeElement` became `#report-section`, which retained `tabindex=-1`, and its top settled near 90px. |
+| Locale-style report rerender does not steal focus | 390 × 844 | PASS | With the menu button focused, calling the same helper with `scroll=false` left `document.activeElement` on `#workspace-menu-button`. |
+| Desktop navigation state and short-viewport scrolling | 1280 × 720 | PASS | The mobile media query was false, the mobile header computed to `display:none`, the sidebar had no `inert` attribute, and its computed `overflow-y` was `auto`. |
+
+Direct physical Tab stepping beyond the first navigation item was not observed:
+the browser-automation keypress did not advance focus. Therefore this pass does
+not claim a complete physical-Tab sequence; the executable drawer behavior tests
+remain the contract for open/closed/focus/media state transitions. The automated
+contrast contract remains the evidence for the color ratios.
 
 ## Acceptance conclusion
 
