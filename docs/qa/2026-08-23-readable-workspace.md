@@ -11,7 +11,7 @@ fix commit `817fbd4330620f4f1b40ef90001e7446dfbf2893`.
 | `npm test` | Environment-limited | 91/99 tests passed. The eight failures are all loopback-listener tests and report `listen EPERM: operation not permitted 127.0.0.1`. |
 | `npm run check` | PASS | Syntax check passed for 69 JavaScript modules (exit 0). |
 | `npm run build` | PASS | Deployable application built in `dist/` (exit 0). |
-| `npm run pages:build` | PASS | Pages artifact `pages-dist` built with 9 files (exit 0). |
+| `npm run pages:build` | PASS | Pages artifact `pages-dist` built with 10 files (exit 0). |
 
 `npm run pages:build` itself exited 0 after producing the Pages artifact and
 completing its secret scan. The separate passing Pages-builder test validates the
