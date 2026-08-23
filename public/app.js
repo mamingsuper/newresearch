@@ -225,6 +225,16 @@ function updatePaperActionButtons() {
   }
 }
 
+function buildSavedPaperController(ownerId = null) {
+  return createOptimisticSavedPaperController({
+    store: savedPaperStore,
+    onChange: updatePaperActionButtons,
+    onError(code) {
+      if (ownerId && privateCacheGuard.isActive(ownerId)) announceSaved(savedErrorKey(code));
+    },
+  });
+}
+
 function renderSavedLibrary() {
   renderSavedPaperLibrary({
     root: savedPapersRoot,
@@ -232,7 +242,10 @@ function renderSavedLibrary() {
     query: savedPapersFilter.value,
     t,
     async onRemove(paperId) {
-      const removed = await savedPaperController.remove(paperId);
+      const ownerId = authState.user?.id ?? null;
+      const ownerController = savedPaperController;
+      const removed = await ownerController.remove(paperId);
+      if (!privateCacheGuard.owns('saved', ownerId)) return;
       if (!removed) return;
       savedPaperItems = savedPaperItems.filter((item) => item.paperId !== paperId);
       renderSavedLibrary();
@@ -240,12 +253,15 @@ function renderSavedLibrary() {
     },
     onExport(item) { exportSavedPaper(item); },
     async onUpdateNote(paperId, values) {
+      const ownerId = authState.user?.id ?? null;
       try {
         await savedPaperStore.updateNote(paperId, values);
+        if (!privateCacheGuard.owns('saved', ownerId)) return;
         savedPaperItems = savedPaperItems.map((item) => item.paperId === paperId ? { ...item, ...values } : item);
         renderSavedLibrary();
         announceSaved('saved.updated');
       } catch (error) {
+        if (!privateCacheGuard.owns('saved', ownerId)) return;
         announceSaved(savedErrorKey(error?.code));
       }
     },
@@ -310,26 +326,32 @@ function renderConversations() {
       }
     },
     async onRename(session) {
+      const ownerId = authState.user?.id ?? null;
       const title = window.prompt(t('conversation.renamePrompt'), session.title);
       if (title === null) return;
       try {
         await conversationStore.rename(session.id, title);
+        if (!privateCacheGuard.owns('conversations', ownerId)) return;
         conversationItems = conversationItems.map((item) => item.id === session.id ? { ...item, title: title.trim() } : item);
         renderConversations();
         announceConversation('conversation.renamed');
       } catch (error) {
+        if (!privateCacheGuard.owns('conversations', ownerId)) return;
         announceConversation(conversationErrorKey(error?.code));
       }
     },
     onExport(session) { exportSavedConversation(session); },
     async onDelete(sessionId) {
+      const ownerId = authState.user?.id ?? null;
       if (!window.confirm(t('conversation.deleteConfirm'))) return;
       try {
         await conversationStore.remove(sessionId);
+        if (!privateCacheGuard.owns('conversations', ownerId)) return;
         conversationItems = conversationItems.filter((item) => item.id !== sessionId);
         renderConversations();
         announceConversation('conversation.deleted');
       } catch (error) {
+        if (!privateCacheGuard.owns('conversations', ownerId)) return;
         announceConversation(conversationErrorKey(error?.code));
       }
     },
@@ -383,7 +405,10 @@ async function saveLatestAnalysis() {
 
 async function executeAuthenticatedIntent(intent = {}) {
   if (intent.action === 'save-paper') {
-    const saved = await savedPaperController.save(intent.entityId);
+    const ownerId = authState.user?.id ?? null;
+    const ownerController = savedPaperController;
+    const saved = await ownerController.save(intent.entityId);
+    if (!privateCacheGuard.isActive(ownerId)) return false;
     if (saved) announceSaved('saved.saved');
     return saved;
   }
@@ -905,11 +930,7 @@ conversationStore = createConversationStore({
   supabase: browserSupabase,
   getUserId: () => authState.user?.id ?? null,
 });
-savedPaperController = createOptimisticSavedPaperController({
-  store: savedPaperStore,
-  onChange: updatePaperActionButtons,
-  onError: (code) => announceSaved(savedErrorKey(code)),
-});
+savedPaperController = buildSavedPaperController();
 authUi = initAuthUi({
   authClient,
   dialog: authDialog,
@@ -922,7 +943,7 @@ authUi = initAuthUi({
     accountEntry.textContent = t(state.status === 'authenticated' ? 'nav.account' : 'nav.signIn');
     if (cacheTransition.userChanged) {
       savedPaperItems = [];
-      savedPaperController.replace([]);
+      savedPaperController = buildSavedPaperController(state.user?.id ?? null);
       savedPapersSection.hidden = true;
       clearElement(savedPapersRoot);
       conversationItems = [];

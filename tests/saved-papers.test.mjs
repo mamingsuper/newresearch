@@ -174,7 +174,8 @@ test('application wires authenticated intents to the private library without bro
   assert.match(app, /createSavedPaperStore/);
   assert.match(app, /intent\.action === 'save-paper'/);
   assert.match(app, /intent\.action === 'saved-papers'/);
-  assert.match(app, /savedPaperController\.save\(intent\.entityId\)/);
+  assert.match(app, /ownerController\.save\(intent\.entityId\)/);
+  assert.match(app, /privateCacheGuard\.isActive\(ownerId\)/);
   assert.doesNotMatch(app, /from\(['"]papers['"]\)/);
   for (const key of ['saved.loading', 'saved.empty', 'saved.error.unavailable', 'saved.savedButton']) {
     assert.equal((i18n.match(new RegExp(`'${key.replaceAll('.', '\\.')}':`, 'g')) ?? []).length, 2);
