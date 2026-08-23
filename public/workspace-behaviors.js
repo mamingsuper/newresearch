@@ -5,6 +5,16 @@ export function scrollBehaviorForMotionPreference(prefersReducedMotion) {
   return prefersReducedMotion ? 'auto' : 'smooth';
 }
 
+export function presentRenderedReport(section, { scroll = true, prefersReducedMotion = false } = {}) {
+  section.hidden = false;
+  if (!scroll) return;
+  section.focus({ preventScroll: true });
+  section.scrollIntoView({
+    behavior: scrollBehaviorForMotionPreference(prefersReducedMotion),
+    block: 'start',
+  });
+}
+
 export function normalizeCorpus(payload) {
   const candidate = payload?.data?.stats ?? payload?.data ?? payload?.stats ?? payload ?? {};
   return {

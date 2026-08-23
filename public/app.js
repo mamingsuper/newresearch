@@ -1,6 +1,6 @@
 import { createTranslator } from './i18n.js';
 import { createWorkspaceUiState, initWorkspaceNavigation } from './workspace.js';
-import { createCorpusStatusModel, normalizeCorpus, scrollBehaviorForMotionPreference } from './workspace-behaviors.js';
+import { createCorpusStatusModel, normalizeCorpus, presentRenderedReport } from './workspace-behaviors.js';
 
 const LOCALE_STORAGE_KEY = 'idea-radar-locale';
 const readLocale = () => {
@@ -417,11 +417,8 @@ function renderReport(report, { scroll = true } = {}) {
   finalGrid.append(next, limits);
   reportRoot.append(finalGrid);
 
-  reportSection.hidden = false;
-  if (scroll) {
-    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-    reportSection.scrollIntoView({ behavior: scrollBehaviorForMotionPreference(prefersReducedMotion), block: 'start' });
-  }
+  const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  presentRenderedReport(reportSection, { scroll, prefersReducedMotion });
 }
 
 function renderUiState() {

@@ -27,20 +27,34 @@ export function createWorkspaceUiState() {
   };
 }
 
-export function initWorkspaceNavigation({ sidebar, menuButton, authIntentHandler } = {}) {
+export function initWorkspaceNavigation({ sidebar, menuButton, authIntentHandler, mobileQuery } = {}) {
   if (!sidebar || !menuButton) return { close() {}, setOpen() {} };
 
-  const setOpen = (open) => {
-    const value = Boolean(open);
-    sidebar.dataset.open = String(value);
-    menuButton.setAttribute('aria-expanded', String(value));
+  const mediaQuery = mobileQuery ?? globalThis.window?.matchMedia?.('(max-width: 899px)') ?? { matches: false };
+  let open = false;
+  const firstNavigationControl = () => sidebar.querySelector?.(
+    'nav a[href], nav button:not([disabled]), .account-entry:not([disabled]), select:not([disabled])',
+  );
+  const synchronize = ({ focusFirst = false } = {}) => {
+    if (!mediaQuery.matches) open = false;
+    sidebar.dataset.open = String(open);
+    menuButton.setAttribute('aria-expanded', String(open));
+    sidebar.inert = mediaQuery.matches && !open;
+    if (focusFirst && open) firstNavigationControl()?.focus();
   };
-  const close = ({ returnFocus = false } = {}) => {
+  const setOpen = (value) => {
+    open = Boolean(value) && mediaQuery.matches;
+    synchronize({ focusFirst: open });
+  };
+  const close = ({ returnFocus = true } = {}) => {
     setOpen(false);
-    if (returnFocus) menuButton.focus();
+    if (returnFocus && mediaQuery.matches) menuButton.focus();
   };
 
-  menuButton.addEventListener('click', () => setOpen(sidebar.dataset.open !== 'true'));
+  menuButton.addEventListener('click', () => {
+    if (open) close();
+    else setOpen(true);
+  });
   sidebar.addEventListener('click', (event) => {
     const authTarget = event.target.closest('[data-auth-intent]');
     if (authTarget) {
@@ -51,8 +65,12 @@ export function initWorkspaceNavigation({ sidebar, menuButton, authIntentHandler
     if (event.target.closest('a[href]')) close();
   });
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && sidebar.dataset.open === 'true') close({ returnFocus: true });
+    if (event.key === 'Escape' && open) close();
   });
-  setOpen(false);
+  mediaQuery.addEventListener?.('change', () => {
+    open = false;
+    synchronize();
+  });
+  synchronize();
   return { close, setOpen };
 }

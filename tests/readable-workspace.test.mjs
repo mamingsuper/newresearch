@@ -4,6 +4,21 @@ import { readFile } from 'node:fs/promises';
 
 const root = new URL('../', import.meta.url);
 const text = (path) => readFile(new URL(path, root), 'utf8');
+const hexToRgb = (hex) => {
+  const normalized = hex.replace('#', '');
+  return [0, 2, 4].map((offset) => Number.parseInt(normalized.slice(offset, offset + 2), 16));
+};
+const relativeLuminance = (hex) => {
+  const channels = hexToRgb(hex).map((channel) => {
+    const value = channel / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+};
+const contrastRatio = (left, right) => {
+  const [lighter, darker] = [relativeLuminance(left), relativeLuminance(right)].sort((a, b) => b - a);
+  return (lighter + 0.05) / (darker + 0.05);
+};
 const allowedSmallTextSelectors = [
   /^\.paper-citation-line(?:\s+(?:strong|span))?$/i,
   /^\.paper-detail-chips(?:\s+span)?$/i,
@@ -99,6 +114,22 @@ test('workspace shell exposes focused navigation, responsive controls, and accou
   }
   assert.match(css, /\.workspace-shell\s*\{[\s\S]*display:\s*grid[\s\S]*grid-template-columns:/i);
   assert.match(css, /@media\s*\(max-width:\s*899px\)[\s\S]*\.workspace-shell\s*\{[\s\S]*display:\s*block[\s\S]*\.workspace-sidebar\s*\{[\s\S]*transform:\s*translateX\(-105%\)[\s\S]*\.workspace-sidebar\[data-open="true"\]\s*\{[\s\S]*transform:\s*translateX\(0\)/i);
+  assert.match(css, /\.workspace-sidebar\s*\{[^}]*overflow-y:\s*auto/i);
+});
+
+test('localized account feedback lives outside the mobile sidebar', async () => {
+  const html = await text('public/index.html');
+  const sidebarEnd = html.indexOf('</aside>');
+  const status = html.indexOf('id="auth-intent-status"');
+  const main = html.indexOf('<main id="workspace-main"');
+
+  assert.ok(sidebarEnd >= 0 && status > sidebarEnd && status < main);
+  assert.match(html.slice(status - 120, status + 160), /role="status"[^>]*aria-live="polite"/i);
+});
+
+test('report target is programmatically focusable', async () => {
+  const html = await text('public/index.html');
+  assert.match(html, /id="report-section"[^>]*tabindex="-1"/i);
 });
 
 test('essential typography meets the readable product contract', async () => {
@@ -133,6 +164,32 @@ test('reduced motion disables workspace and result transitions', async () => {
   assert.match(workspaceCss, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*#progress-bar\s*\{[\s\S]*(?:transition|animation):\s*none/i);
   assert.match(workspaceCss, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\.primary-button\s*\{[\s\S]*(?:transition|animation):\s*none/i);
   assert.match(resultCss, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\.paper-abstract-preview\s*\{[\s\S]*(?:transition|animation):\s*none/i);
+});
+
+test('canonical normal-text color combinations meet WCAG AA contrast', async () => {
+  const css = await text('public/styles.css');
+  const tokenEntries = [...css.matchAll(/--([\w-]+):\s*(#[0-9a-f]{6})\s*;/gi)]
+    .map(([, name, value]) => [name, value.toLowerCase()]);
+  const tokens = Object.fromEntries(tokenEntries);
+  const combinations = [
+    ['ink', 'paper'],
+    ['muted', 'paper'],
+    ['muted', 'surface-strong'],
+    ['blue', 'white'],
+    ['blue', 'surface-strong'],
+    ['green', 'white'],
+    ['green', 'surface-strong'],
+    ['placeholder', 'surface-strong'],
+  ];
+  tokens.white = '#ffffff';
+
+  for (const [foreground, background] of combinations) {
+    assert.ok(tokens[foreground], `missing --${foreground}`);
+    assert.ok(tokens[background], `missing --${background}`);
+    const ratio = contrastRatio(tokens[foreground], tokens[background]);
+    assert.ok(ratio >= 4.5, `${foreground} on ${background} is ${ratio.toFixed(2)}:1`);
+  }
+  assert.match(css, /textarea::placeholder\s*\{[^}]*color:\s*var\(--placeholder\)/i);
 });
 
 test('each related paper is appended exactly once', async () => {

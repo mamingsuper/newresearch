@@ -1,11 +1,46 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createTranslator } from '../public/i18n.js';
-import { createCorpusStatusModel, scrollBehaviorForMotionPreference } from '../public/workspace-behaviors.js';
+import {
+  createCorpusStatusModel,
+  presentRenderedReport,
+  scrollBehaviorForMotionPreference,
+} from '../public/workspace-behaviors.js';
 
 test('scroll behavior uses auto for reduced motion and smooth otherwise', () => {
   assert.equal(scrollBehaviorForMotionPreference(true), 'auto');
   assert.equal(scrollBehaviorForMotionPreference(false), 'smooth');
+});
+
+test('initial report presentation focuses before motion-aware scrolling', () => {
+  const calls = [];
+  const section = {
+    hidden: true,
+    focus(options) { calls.push(['focus', options]); },
+    scrollIntoView(options) { calls.push(['scroll', options]); },
+  };
+
+  presentRenderedReport(section, { scroll: true, prefersReducedMotion: true });
+
+  assert.equal(section.hidden, false);
+  assert.deepEqual(calls, [
+    ['focus', { preventScroll: true }],
+    ['scroll', { behavior: 'auto', block: 'start' }],
+  ]);
+});
+
+test('locale report rerender reveals content without stealing focus or scrolling', () => {
+  const calls = [];
+  const section = {
+    hidden: true,
+    focus(options) { calls.push(['focus', options]); },
+    scrollIntoView(options) { calls.push(['scroll', options]); },
+  };
+
+  presentRenderedReport(section, { scroll: false, prefersReducedMotion: false });
+
+  assert.equal(section.hidden, false);
+  assert.deepEqual(calls, []);
 });
 
 test('corpus status model keeps a failed lookup render-safe in English and Chinese', () => {

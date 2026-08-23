@@ -1,8 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { readFile, readdir } from 'node:fs/promises';
+import { promisify } from 'node:util';
 
 const root = new URL('../', import.meta.url);
+const execFileAsync = promisify(execFile);
 
 async function text(path) {
   return readFile(new URL(path, root), 'utf8');
@@ -28,6 +31,23 @@ test('Pages builder emits a subpath-safe static artifact and scans for secrets',
   assert.match(builder, /\.nojekyll/);
   assert.match(builder, /root-absolute|absolute asset|href=|src=/i);
   assert.match(builder, /OPENAI_API_KEY|sb_secret_|SERVICE_ROLE|RATE_LIMIT_HMAC_KEY/i);
+});
+
+test('Pages builder reports the actual artifact file count', async () => {
+  const { stdout } = await execFileAsync(process.execPath, ['scripts/build-pages.mjs'], {
+    cwd: new URL('../', import.meta.url),
+  });
+  const result = JSON.parse(stdout.trim());
+  const output = new URL('../pages-dist/', import.meta.url);
+  const walk = async (directory) => {
+    const entries = await readdir(directory, { withFileTypes: true });
+    const nested = await Promise.all(entries.map((entry) => (
+      entry.isDirectory() ? walk(new URL(`${entry.name}/`, directory)) : 1
+    )));
+    return nested.flat(Infinity).reduce((total, count) => total + count, 0);
+  };
+
+  assert.equal(result.files, await walk(output));
 });
 
 test('Pages workflow verifies and deploys the pages-dist artifact from main', async () => {

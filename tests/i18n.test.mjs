@@ -33,12 +33,29 @@ test('workspace UI state preserves semantic busy, progress, error, and auth stat
   assert.equal(chinese.auth, '收藏论文 即将推出。本阶段尚不支持登录或保存工作。');
 });
 
+test('save, export, and sign-in feedback remains localized', () => {
+  const state = createWorkspaceUiState();
+  const expectations = [
+    ['save-paper', 'Saving papers is coming soon.', '保存论文 即将推出。'],
+    ['export', 'Private-workspace export is coming soon.', '私有工作区导出 即将推出。'],
+    ['sign-in', 'Sign-in is coming soon.', '登录 即将推出。'],
+  ];
+
+  for (const [intent, englishPrefix, chinesePrefix] of expectations) {
+    state.setAuthIntent(intent);
+    assert.ok(state.view(createTranslator({ locale: 'en' }).t).auth.startsWith(englishPrefix));
+    assert.ok(state.view(createTranslator({ locale: 'zh' }).t).auth.startsWith(chinesePrefix));
+  }
+});
+
 class FakeElement {
   constructor() {
     this.attributes = new Map();
     this.dataset = {};
     this.listeners = new Map();
     this.focused = false;
+    this.inert = false;
+    this.firstNavigationControl = null;
   }
 
   addEventListener(type, listener) { this.listeners.set(type, listener); }
@@ -46,29 +63,56 @@ class FakeElement {
   setAttribute(name, value) { this.attributes.set(name, value); }
   getAttribute(name) { return this.attributes.get(name); }
   focus() { this.focused = true; }
+  querySelector(selector) {
+    return selector.includes('nav a[href]') ? this.firstNavigationControl : null;
+  }
 }
 
-test('workspace navigation synchronizes mobile state and delegates account intent', () => {
+class FakeMediaQuery {
+  constructor(matches) {
+    this.matches = matches;
+    this.listeners = new Set();
+  }
+
+  addEventListener(type, listener) {
+    if (type === 'change') this.listeners.add(listener);
+  }
+
+  setMatches(matches) {
+    this.matches = matches;
+    for (const listener of this.listeners) listener({ matches });
+  }
+}
+
+test('workspace navigation removes a closed mobile drawer from focus and restores focus on close', () => {
   const previousDocument = globalThis.document;
   const documentListeners = new Map();
   globalThis.document = { addEventListener(type, listener) { documentListeners.set(type, listener); } };
   try {
     const sidebar = new FakeElement();
     const menuButton = new FakeElement();
+    const firstNavigationControl = new FakeElement();
+    const mobileQuery = new FakeMediaQuery(true);
+    sidebar.firstNavigationControl = firstNavigationControl;
     const intents = [];
     initWorkspaceNavigation({
       sidebar,
       menuButton,
+      mobileQuery,
       authIntentHandler(intent) { intents.push(intent); },
     });
 
+    assert.equal(sidebar.inert, true);
     menuButton.dispatch('click');
     assert.equal(sidebar.dataset.open, 'true');
     assert.equal(menuButton.getAttribute('aria-expanded'), 'true');
+    assert.equal(sidebar.inert, false);
+    assert.equal(firstNavigationControl.focused, true);
 
     documentListeners.get('keydown')({ key: 'Escape' });
     assert.equal(sidebar.dataset.open, 'false');
     assert.equal(menuButton.getAttribute('aria-expanded'), 'false');
+    assert.equal(sidebar.inert, true);
     assert.equal(menuButton.focused, true);
 
     menuButton.dispatch('click');
@@ -83,6 +127,37 @@ test('workspace navigation synchronizes mobile state and delegates account inten
       target: { closest(selector) { return selector === 'a[href]' ? {} : null; } },
     });
     assert.equal(sidebar.dataset.open, 'false');
+  } finally {
+    globalThis.document = previousDocument;
+  }
+});
+
+test('workspace navigation media changes never make desktop navigation inert', () => {
+  const previousDocument = globalThis.document;
+  globalThis.document = { addEventListener() {} };
+  try {
+    const sidebar = new FakeElement();
+    const menuButton = new FakeElement();
+    const firstNavigationControl = new FakeElement();
+    const mobileQuery = new FakeMediaQuery(true);
+    sidebar.firstNavigationControl = firstNavigationControl;
+    const navigation = initWorkspaceNavigation({ sidebar, menuButton, mobileQuery });
+
+    assert.equal(sidebar.inert, true);
+    navigation.setOpen(true);
+    assert.equal(sidebar.inert, false);
+
+    mobileQuery.setMatches(false);
+    assert.equal(sidebar.inert, false);
+    assert.equal(sidebar.dataset.open, 'false');
+    assert.equal(menuButton.getAttribute('aria-expanded'), 'false');
+
+    navigation.setOpen(true);
+    assert.equal(sidebar.inert, false);
+    assert.equal(sidebar.dataset.open, 'false');
+
+    mobileQuery.setMatches(true);
+    assert.equal(sidebar.inert, true);
   } finally {
     globalThis.document = previousDocument;
   }

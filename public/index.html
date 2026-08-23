@@ -34,7 +34,6 @@
           <span class="live-dot" aria-hidden="true"></span>
           <span data-i18n="shell.checkingCorpus">Checking corpus…</span>
         </div>
-        <p id="auth-intent-status" role="status" aria-live="polite"></p>
       </aside>
 
       <div class="workspace-content">
@@ -42,6 +41,10 @@
           <a class="brand" href="#new-analysis">Idea Radar</a>
           <button id="workspace-menu-button" type="button" aria-controls="workspace-nav" aria-expanded="false" data-i18n="nav.menu">Menu</button>
         </header>
+
+        <div class="workspace-status-region shell">
+          <p id="auth-intent-status" role="status" aria-live="polite" hidden></p>
+        </div>
 
         <main id="workspace-main">
       <section class="query-hero shell" id="new-analysis" aria-labelledby="hero-title">
@@ -136,7 +139,7 @@
         <p data-i18n="preview.libraryCopy">Browse and compare the indexed conference evidence here as the next workspace stage arrives.</p>
       </section>
 
-      <section class="report-shell shell" id="report-section" aria-labelledby="report-title" hidden>
+      <section class="report-shell shell" id="report-section" aria-labelledby="report-title" tabindex="-1" hidden>
         <div class="report-heading">
           <div>
             <p class="eyebrow" data-i18n="report.eyebrow">Evidence-grounded report</p>

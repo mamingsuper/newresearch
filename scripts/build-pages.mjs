@@ -49,9 +49,9 @@ for (const file of files) {
 }
 
 for (const required of ['index.html', 'styles.css', 'config.js', 'app.js', '.nojekyll']) {
-  if (!files.some((file) => path.relative(outputDir, file) === required) && required !== '.nojekyll') {
+  if (!files.some((file) => path.relative(outputDir, file) === required)) {
     throw new Error(`Pages artifact is missing ${required}`);
   }
 }
 
-console.log(JSON.stringify({ command: 'pages:build', output: 'pages-dist', files: files.length + 1 }));
+console.log(JSON.stringify({ command: 'pages:build', output: 'pages-dist', files: files.length }));
