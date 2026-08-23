@@ -1,4 +1,4 @@
-name: Embed corpus with Nomic
+name: Embed corpus with OpenAI
 
 on:
   workflow_dispatch:
@@ -17,16 +17,17 @@ jobs:
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
-      NOMIC_EMBEDDING_MODEL: nomic-ai/nomic-embed-text-v1.5
-      EMBEDDING_BATCH_SIZE: 16
-      EMBEDDING_LEASE_SECONDS: 900
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_EMBEDDING_MODEL: text-embedding-3-small
+      EMBEDDING_BATCH_SIZE: 64
+      EMBEDDING_LEASE_SECONDS: 300
       EMBEDDING_MAX_ATTEMPTS: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install
+      - run: npm install --ignore-scripts
       - name: Corpus stats before embedding
         run: npm run corpus:stats -- --json
       - name: Generate all pending embeddings
