@@ -6,6 +6,7 @@ import { initAuthUi } from './auth-ui.js';
 import { createAuthActionRouter } from './auth-actions.js';
 import { initPublicAnalysisForm } from './analysis-form.js';
 import { createOptimisticSavedPaperController, createSavedPaperStore, renderSavedPaperLibrary } from './saved-papers.js';
+import { createConversationStore, renderConversationList } from './conversations.js';
 
 const LOCALE_STORAGE_KEY = 'idea-radar-locale';
 const readLocale = () => {
@@ -38,6 +39,11 @@ const savedPapersSection = document.querySelector('#saved-papers');
 const savedPapersRoot = document.querySelector('#saved-papers-root');
 const savedPapersFilter = document.querySelector('#saved-papers-filter');
 const savedPapersStatus = document.querySelector('#saved-papers-status');
+const conversationsSection = document.querySelector('#conversations');
+const conversationsRoot = document.querySelector('#conversations-root');
+const conversationsStatus = document.querySelector('#conversations-status');
+const saveAnalysisButton = document.querySelector('#save-analysis-button');
+const saveAnalysisStatus = document.querySelector('#save-analysis-status');
 
 const PROGRESS_STAGES = [
   { target: 5, key: 'progress.stage.understanding' },
@@ -55,12 +61,16 @@ let progressHoldTicks = 0;
 let latestCorpus = null;
 let latestCorpusMode;
 let latestReport = null;
+let latestIdeaText = '';
+let latestReportSaved = false;
 let authState = { status: 'disabled', user: null };
 let authUi;
 let authActionRouter;
 let savedPaperController;
 let savedPaperStore;
 let savedPaperItems = [];
+let conversationStore;
+let conversationItems = [];
 const unavailableActionIntents = Object.freeze({
   'action.exportUnavailable': 'export',
 });
@@ -93,8 +103,9 @@ function setLocale(locale) {
   updateCharacterCount();
   renderUiState();
   if (latestCorpus) renderCorpusStatus(latestCorpus, latestCorpusMode);
-  if (latestReport) renderReport(latestReport, { scroll: false });
+  if (latestReport) renderReport(latestReport, { scroll: false, saved: latestReportSaved });
   if (!savedPapersSection.hidden) renderSavedLibrary();
+  if (!conversationsSection.hidden) renderConversations();
   updatePaperActionButtons();
 }
 
@@ -142,7 +153,7 @@ function requestAccountAction(action, entityId = '', trigger = document.activeEl
 
 async function restoreAuthenticatedIntent(intent) {
   await executeAuthenticatedIntent(intent);
-  if (intent.action !== 'saved-papers' && intent.returnHash) window.location.hash = intent.returnHash;
+  if (!['saved-papers', 'conversations'].includes(intent.action) && intent.returnHash) window.location.hash = intent.returnHash;
   let target = null;
   if (intent.action === 'save-paper' && intent.entityId) {
     const card = [...document.querySelectorAll('[data-paper-id]')]
@@ -233,6 +244,106 @@ async function loadSavedLibrary() {
   }
 }
 
+function conversationErrorKey(code) {
+  if (code === 'conversations_auth_required') return 'conversation.error.auth';
+  if (code === 'conversations_invalid') return 'conversation.error.invalid';
+  return 'conversation.error.unavailable';
+}
+
+function announceConversation(key) {
+  const message = t(key);
+  conversationsStatus.textContent = message;
+  conversationsStatus.hidden = false;
+  authIntentStatus.textContent = message;
+  authIntentStatus.hidden = false;
+}
+
+function renderConversations() {
+  renderConversationList({
+    root: conversationsRoot,
+    sessions: conversationItems,
+    t: (key) => t(key),
+    async onReopen(sessionId) {
+      try {
+        const session = await conversationStore.reopen(sessionId);
+        latestIdeaText = session.ideaText;
+        latestReportSaved = true;
+        ideaInput.value = session.ideaText;
+        updateCharacterCount();
+        renderReport(session.report, { saved: true });
+        announceConversation('conversation.reopened');
+      } catch (error) {
+        announceConversation(conversationErrorKey(error?.code));
+      }
+    },
+    async onRename(session) {
+      const title = window.prompt(t('conversation.renamePrompt'), session.title);
+      if (title === null) return;
+      try {
+        await conversationStore.rename(session.id, title);
+        conversationItems = conversationItems.map((item) => item.id === session.id ? { ...item, title: title.trim() } : item);
+        renderConversations();
+        announceConversation('conversation.renamed');
+      } catch (error) {
+        announceConversation(conversationErrorKey(error?.code));
+      }
+    },
+    onExport() { showUnavailableAction('action.exportUnavailable'); },
+    async onDelete(sessionId) {
+      if (!window.confirm(t('conversation.deleteConfirm'))) return;
+      try {
+        await conversationStore.remove(sessionId);
+        conversationItems = conversationItems.filter((item) => item.id !== sessionId);
+        renderConversations();
+        announceConversation('conversation.deleted');
+      } catch (error) {
+        announceConversation(conversationErrorKey(error?.code));
+      }
+    },
+  });
+}
+
+async function loadConversations() {
+  conversationsSection.hidden = false;
+  window.location.hash = '#conversations';
+  announceConversation('conversation.loading');
+  try {
+    conversationItems = await conversationStore.list();
+    renderConversations();
+    announceConversation('conversation.loaded');
+    conversationsSection.focus?.();
+  } catch (error) {
+    conversationItems = [];
+    renderConversations();
+    announceConversation(conversationErrorKey(error?.code));
+  }
+}
+
+async function saveLatestAnalysis() {
+  if (!latestReport || !latestIdeaText) return false;
+  saveAnalysisButton.disabled = true;
+  saveAnalysisButton.textContent = t('conversation.saving');
+  saveAnalysisStatus.textContent = t('conversation.saving');
+  try {
+    await conversationStore.save({
+      title: String(latestReport.ideaProfile?.summary ?? latestIdeaText).trim().slice(0, 200),
+      ideaText: latestIdeaText,
+      report: latestReport,
+      language: translator.locale,
+      corpusSnapshot: latestCorpus ?? {},
+    });
+    latestReportSaved = true;
+    saveAnalysisButton.textContent = t('conversation.saved');
+    saveAnalysisStatus.textContent = t('conversation.savedStatus');
+    return true;
+  } catch (error) {
+    saveAnalysisButton.disabled = false;
+    saveAnalysisButton.textContent = t('conversation.save');
+    saveAnalysisStatus.textContent = t(conversationErrorKey(error?.code));
+    return false;
+  }
+}
+
 async function executeAuthenticatedIntent(intent = {}) {
   if (intent.action === 'save-paper') {
     const saved = await savedPaperController.save(intent.entityId);
@@ -241,6 +352,11 @@ async function executeAuthenticatedIntent(intent = {}) {
   }
   if (intent.action === 'saved-papers') {
     await loadSavedLibrary();
+    return true;
+  }
+  if (intent.action === 'save-analysis') return saveLatestAnalysis();
+  if (intent.action === 'conversations') {
+    await loadConversations();
     return true;
   }
   return false;
@@ -525,8 +641,13 @@ function renderInnovationPaths(paths, relatedPapers) {
   return section;
 }
 
-function renderReport(report, { scroll = true } = {}) {
+function renderReport(report, { scroll = true, saved = latestReportSaved } = {}) {
   latestReport = report;
+  latestReportSaved = saved;
+  saveAnalysisButton.hidden = false;
+  saveAnalysisButton.disabled = saved;
+  saveAnalysisButton.textContent = t(saved ? 'conversation.saved' : 'conversation.save');
+  saveAnalysisStatus.textContent = saved ? t('conversation.savedStatus') : '';
   clearElement(reportRoot);
   reportRoot.append(
     element('div', {
@@ -707,8 +828,21 @@ const authClient = createAuthClient({
   publishableKey: publicConfig.supabasePublishableKey ?? '',
   storage: authStorage,
 });
+const browserSupabase = authClient.getSupabaseClient();
 savedPaperStore = createSavedPaperStore({
-  supabase: authClient.getSupabaseClient(),
+  supabase: browserSupabase,
+  getUserId: () => authState.user?.id ?? null,
+});
+conversationStore = createConversationStore({
+  fetchImpl: window.fetch.bind(window),
+  endpoint: apiEndpoint('save-analysis', '/api/save-analysis'),
+  async getAccessToken() {
+    const result = await browserSupabase?.auth?.getSession?.();
+    if (result?.error) return null;
+    return result?.data?.session?.access_token ?? null;
+  },
+  randomUUID: () => window.crypto.randomUUID(),
+  supabase: browserSupabase,
   getUserId: () => authState.user?.id ?? null,
 });
 savedPaperController = createOptimisticSavedPaperController({
@@ -729,6 +863,8 @@ authUi = initAuthUi({
       savedPaperItems = [];
       savedPaperController.replace([]);
       savedPapersSection.hidden = true;
+      conversationItems = [];
+      conversationsSection.hidden = true;
     }
   },
   consumeIntent(intent) {
@@ -768,7 +904,9 @@ initPublicAnalysisForm({
   )),
   onSuccess(report) {
     completeProgress();
-    renderReport(report);
+    latestIdeaText = ideaInput.value.trim();
+    latestReportSaved = false;
+    renderReport(report, { saved: false });
   },
   onFailure() {
     failProgress();
@@ -785,6 +923,10 @@ initWorkspaceNavigation({
   },
 });
 savedPapersFilter.addEventListener('input', renderSavedLibrary);
+saveAnalysisButton.addEventListener('click', (event) => {
+  event.currentTarget.focus();
+  requestAccountAction('save-analysis', '', event.currentTarget);
+});
 renderUiState();
 updateCharacterCount();
 loadCorpusStatus();

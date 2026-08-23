@@ -154,6 +154,18 @@
         <div id="saved-papers-root"></div>
       </section>
 
+      <section class="conversations-shell shell" id="conversations" aria-labelledby="conversations-title" hidden>
+        <div class="conversations-heading">
+          <div>
+            <p class="eyebrow" data-i18n="conversation.eyebrow">Private research history</p>
+            <h2 id="conversations-title" data-i18n="conversation.title">Conversations</h2>
+          </div>
+          <p data-i18n="conversation.copy">Reopen a saved analysis without running it again.</p>
+        </div>
+        <p id="conversations-status" role="status" aria-live="polite" hidden></p>
+        <div id="conversations-root"></div>
+      </section>
+
       <section class="report-shell shell" id="report-section" aria-labelledby="report-title" tabindex="-1" hidden>
         <div class="report-heading">
           <div>
@@ -161,6 +173,10 @@
             <h2 id="report-title" data-i18n="report.title">Your research frontier</h2>
           </div>
           <p class="report-subtitle" data-i18n="report.subtitle">Every paper links back to its source. Weak evidence stays weak.</p>
+          <div class="report-save-actions">
+            <button id="save-analysis-button" type="button" data-i18n="conversation.save" hidden>Save to workspace</button>
+            <span id="save-analysis-status" role="status" aria-live="polite"></span>
+          </div>
         </div>
         <div id="report-root" aria-live="polite"></div>
       </section>
@@ -168,7 +184,7 @@
       <section class="privacy-strip shell" id="privacy" aria-label="Privacy and scope" data-i18n-aria-label="privacy.label">
         <div>
           <span class="privacy-icon" aria-hidden="true">◎</span>
-          <p><strong data-i18n="privacy.idea">Idea privacy:</strong> <span data-i18n="privacy.ideaCopy">the application does not intentionally persist your raw idea. Live analysis sends it to the configured model provider with storage disabled where supported.</span></p>
+          <p><strong data-i18n="privacy.idea">Idea privacy:</strong> <span data-i18n="privacy.ideaCopy">your raw idea is not saved unless you explicitly choose Save to workspace. Live analysis sends it to the configured model provider with storage disabled where supported.</span></p>
         </div>
         <p><strong data-i18n="privacy.scope">Scope:</strong> <span data-i18n="privacy.scopeCopy">No global novelty claims. Conclusions are limited to the currently indexed corpus.</span></p>
       </section>
