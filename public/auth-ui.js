@@ -26,8 +26,11 @@ export function initAuthUi({
   const authenticatedControls = requiredElement(dialog, '#auth-authenticated-controls');
   let returnFocus = null;
   let latestState = authClient.state;
+  let announcedState = latestState;
   let authRevision = 0;
   let statusKey = '';
+  let sessionQueue = Promise.resolve();
+  let initialSessionPromise;
 
   function setStatus(key) {
     statusKey = key;
@@ -55,13 +58,34 @@ export function initAuthUi({
     returnFocus = null;
   }
 
-  async function handleSession(nextState) {
+  function closeAndRestoreFocus() {
+    if (dialog.open) dialog.close();
+    else restoreFocus();
+  }
+
+  async function processSession(nextState, revision) {
+    if (revision !== authRevision) return;
     renderState(nextState);
     if (nextState.status !== 'authenticated') return;
     const intent = authClient.consumeIntent();
-    if (intent) await consumeIntent(intent);
-    if (dialog.open) dialog.close();
-    else restoreFocus();
+    try {
+      if (intent) await consumeIntent(intent);
+    } catch {
+      if (announcedState.status === 'authenticated') setStatus('auth.error.intentRestore');
+    } finally {
+      if (intent && announcedState.status === 'authenticated' && latestState.status === 'authenticated') {
+        closeAndRestoreFocus();
+      }
+    }
+  }
+
+  function enqueueSession(nextState, revision) {
+    sessionQueue = sessionQueue
+      .then(() => processSession(nextState, revision))
+      .catch(() => {
+        if (revision === authRevision) setStatus('auth.error.session');
+      });
+    return sessionQueue;
   }
 
   dialog.addEventListener('close', restoreFocus);
@@ -108,13 +132,17 @@ export function initAuthUi({
   });
 
   const subscription = authClient.onAuthStateChange((state) => {
+    announcedState = state;
     authRevision += 1;
-    void handleSession(state);
+    void enqueueSession(state, authRevision);
   });
   const initialRevision = authRevision;
-  void authClient.getSession()
+  initialSessionPromise = authClient.getSession()
     .then((state) => {
-      if (authRevision === initialRevision) return handleSession(state);
+      if (authRevision === initialRevision) {
+        announcedState = state;
+        return enqueueSession(state, initialRevision);
+      }
       return undefined;
     })
     .catch(() => {
@@ -143,6 +171,14 @@ export function initAuthUi({
     },
     state() { return latestState; },
     refresh() { setStatus(statusKey); },
+    async whenIdle() {
+      await initialSessionPromise;
+      while (true) {
+        const pending = sessionQueue;
+        await pending;
+        if (pending === sessionQueue) return;
+      }
+    },
     destroy() { subscription?.unsubscribe?.(); },
   });
 }

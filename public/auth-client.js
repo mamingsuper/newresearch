@@ -79,6 +79,7 @@ export function createAuthClient({ sdk, url, publishableKey, storage, now = Date
     && PUBLIC_KEY_PATTERN.test(publishableKey ?? '');
   let state = sessionState(null, !enabled);
   let client = null;
+  let stateRevision = 0;
 
   if (enabled) {
     try {
@@ -166,10 +167,13 @@ export function createAuthClient({ sdk, url, publishableKey, storage, now = Date
       const result = await client.auth.signOut();
       if (result?.error) throw authError('sign_out_failed');
       state = sessionState(null);
+      stateRevision += 1;
     },
     async getSession() {
       if (!enabled) return sessionState(null, true);
+      const readRevision = stateRevision;
       const result = await client.auth.getSession();
+      if (readRevision !== stateRevision) return state;
       if (result?.error) throw authError('session_read_failed');
       state = sessionState(result?.data?.session);
       return state;
@@ -180,6 +184,7 @@ export function createAuthClient({ sdk, url, publishableKey, storage, now = Date
         return { unsubscribe() {} };
       }
       const result = client.auth.onAuthStateChange((_event, session) => {
+        stateRevision += 1;
         state = sessionState(session);
         callback?.(state);
       });

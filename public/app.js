@@ -3,6 +3,7 @@ import { createWorkspaceUiState, initWorkspaceNavigation } from './workspace.js'
 import { createCorpusStatusModel, normalizeCorpus, presentRenderedReport } from './workspace-behaviors.js';
 import { createAuthClient } from './auth-client.js';
 import { initAuthUi } from './auth-ui.js';
+import { createAuthActionRouter } from './auth-actions.js';
 
 const LOCALE_STORAGE_KEY = 'idea-radar-locale';
 const readLocale = () => {
@@ -50,6 +51,7 @@ let latestCorpusMode;
 let latestReport = null;
 let authState = { status: 'disabled', user: null };
 let authUi;
+let authActionRouter;
 const unavailableActionIntents = Object.freeze({
   'action.exportUnavailable': 'export',
 });
@@ -119,16 +121,12 @@ function requiresAccount(action, paperId, trigger = document.activeElement) {
 }
 
 function requestAccountAction(action, entityId = '', trigger = document.activeElement) {
-  if (authState.status === 'authenticated') {
-    window.dispatchEvent(new CustomEvent('idea-radar:auth-intent', {
-      detail: { action, entityId, returnHash: window.location.hash || '#new-analysis' },
-    }));
-    return;
-  }
-  if (!authUi?.open({ action, entityId, returnHash: window.location.hash || '#new-analysis', trigger })) {
-    uiState.setAuthIntent(action);
-    renderUiState();
-  }
+  authActionRouter.route({
+    action,
+    entityId,
+    returnHash: window.location.hash || '#new-analysis',
+    trigger,
+  });
 }
 
 function restoreAuthenticatedIntent(intent) {
@@ -573,11 +571,13 @@ form.addEventListener('submit', async (event) => {
   setBusy(true);
   startProgress();
   try {
-    const response = await fetch(apiEndpoint('analyze-idea', '/api/analyze'), {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ idea }),
-    });
+    const response = await authActionRouter.runPublicAnalysis(() => (
+      fetch(apiEndpoint('analyze-idea', '/api/analyze'), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ idea }),
+      })
+    ));
     const payload = await response.json();
     if (!response.ok) throw new Error('analysis-failed');
     completeProgress();
@@ -654,6 +654,17 @@ authUi = initAuthUi({
   },
   consumeIntent(intent) {
     restoreAuthenticatedIntent(intent);
+  },
+});
+authActionRouter = createAuthActionRouter({
+  getAuthState: () => authState,
+  openAuth: (intent) => authUi.open(intent),
+  dispatchIntent(intent) {
+    window.dispatchEvent(new CustomEvent('idea-radar:auth-intent', { detail: intent }));
+  },
+  onUnavailable(action) {
+    uiState.setAuthIntent(action);
+    renderUiState();
   },
 });
 initWorkspaceNavigation({

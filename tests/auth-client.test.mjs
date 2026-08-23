@@ -4,7 +4,18 @@ import { readFile } from 'node:fs/promises';
 
 import { createAuthClient } from '../public/auth-client.js';
 import { initAuthUi } from '../public/auth-ui.js';
+import { createAuthActionRouter } from '../public/auth-actions.js';
 import { createTranslator } from '../public/i18n.js';
+
+function deferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
 
 function memoryStorage(initial = {}) {
   const values = new Map(Object.entries(initial));
@@ -16,7 +27,7 @@ function memoryStorage(initial = {}) {
   };
 }
 
-function fakeSdk(calls, { session = null } = {}) {
+function fakeSdk(calls, { session = null, getSession } = {}) {
   let authListener = null;
   const auth = {
     async signInWithOtp(input) {
@@ -31,7 +42,9 @@ function fakeSdk(calls, { session = null } = {}) {
       calls.push({ method: 'signOut' });
       return { error: null };
     },
-    async getSession() { return { data: { session }, error: null }; },
+    async getSession() {
+      return getSession ? getSession() : { data: { session }, error: null };
+    },
     onAuthStateChange(listener) {
       authListener = listener;
       return { data: { subscription: { unsubscribe() {} } } };
@@ -181,6 +194,25 @@ test('malformed, unknown, and expired pending intents are rejected and cleared',
   }
 });
 
+test('a newer Auth event wins over a stale getSession response', async () => {
+  const sessionResult = deferred();
+  const sdk = fakeSdk([], { getSession: () => sessionResult.promise });
+  const client = createAuthClient({
+    sdk, url: 'https://p.supabase.co', publishableKey: 'sb_publishable_test', storage: memoryStorage(),
+  });
+  client.onAuthStateChange(() => {});
+
+  const pending = client.getSession();
+  sdk.emit('SIGNED_IN', { user: { id: 'new-user', email: 'new@example.org' } });
+  sessionResult.resolve({ data: { session: null }, error: null });
+
+  assert.deepEqual(await pending, {
+    status: 'authenticated',
+    user: { id: 'new-user', email: 'new@example.org' },
+  });
+  assert.equal(client.state.status, 'authenticated');
+});
+
 test('Auth UI restores one pending intent and focus on authentication', async () => {
   const calls = [];
   const sdk = fakeSdk(calls);
@@ -207,11 +239,187 @@ test('Auth UI restores one pending intent and focus on authentication', async ()
 
   assert.deepEqual(restored.map((intent) => intent.action), ['saved-papers']);
   sdk.emit('TOKEN_REFRESHED', { user: { id: 'user-1', email: 'reader@example.org' } });
-  await Promise.resolve();
+  await ui.whenIdle();
   assert.deepEqual(restored.map((intent) => intent.action), ['saved-papers']);
   assert.equal(trigger.focused, true);
   assert.ok(states.includes('authenticated'));
   assert.equal(ui.state().status, 'authenticated');
+});
+
+test('intent restoration rejection is localized and still closes safely with focus restoration', async () => {
+  const sdk = fakeSdk([]);
+  const client = createAuthClient({
+    sdk, url: 'https://p.supabase.co', publishableKey: 'sb_publishable_test', storage: memoryStorage(), now: () => 1_800_000,
+  });
+  const { dialog, elements } = fakeDialog();
+  const trigger = new FakeElement();
+  const ui = initAuthUi({
+    authClient: client,
+    dialog,
+    redirectTo: 'https://example.org/',
+    consumeIntent: async () => { throw new Error('private failure detail'); },
+    t: (key) => `localized:${key}`,
+  });
+
+  ui.open({ action: 'saved-papers', returnHash: '#new-analysis', trigger });
+  sdk.emit('SIGNED_IN', { user: { id: 'user-1', email: 'reader@example.org' } });
+  await ui.whenIdle();
+
+  assert.equal(elements['#auth-status'].textContent, 'localized:auth.error.intentRestore');
+  assert.doesNotMatch(elements['#auth-status'].textContent, /private failure detail/);
+  assert.equal(dialog.open, false);
+  assert.equal(trigger.focused, true);
+});
+
+test('repeated signed-in events consume once and serialize cleanup', async () => {
+  const sdk = fakeSdk([]);
+  const storage = memoryStorage();
+  const client = createAuthClient({
+    sdk, url: 'https://p.supabase.co', publishableKey: 'sb_publishable_test', storage, now: () => 1_800_000,
+  });
+  const { dialog } = fakeDialog();
+  const trigger = new FakeElement();
+  const restoreGate = deferred();
+  const restoreStarted = deferred();
+  const restored = [];
+  const ui = initAuthUi({
+    authClient: client,
+    dialog,
+    redirectTo: 'https://example.org/',
+    consumeIntent: async (intent) => { restored.push(intent); restoreStarted.resolve(); await restoreGate.promise; },
+    t: (key) => key,
+  });
+
+  ui.open({ action: 'saved-papers', returnHash: '#new-analysis', trigger });
+  sdk.emit('SIGNED_IN', { user: { id: 'user-1' } });
+  sdk.emit('TOKEN_REFRESHED', { user: { id: 'user-1' } });
+  await restoreStarted.promise;
+  assert.equal(restored.length, 1);
+  restoreGate.resolve();
+  await ui.whenIdle();
+
+  assert.equal(restored.length, 1);
+  assert.equal(dialog.open, false);
+  assert.equal(trigger.focused, true);
+});
+
+test('sign-out during delayed restoration prevents obsolete signed-in cleanup', async () => {
+  const sdk = fakeSdk([]);
+  const client = createAuthClient({
+    sdk, url: 'https://p.supabase.co', publishableKey: 'sb_publishable_test', storage: memoryStorage(), now: () => 1_800_000,
+  });
+  const { dialog } = fakeDialog();
+  const trigger = new FakeElement();
+  const restoreStarted = deferred();
+  const restoreGate = deferred();
+  const ui = initAuthUi({
+    authClient: client,
+    dialog,
+    redirectTo: 'https://example.org/',
+    consumeIntent: async () => { restoreStarted.resolve(); await restoreGate.promise; },
+    t: (key) => key,
+  });
+
+  ui.open({ action: 'saved-papers', returnHash: '#new-analysis', trigger });
+  sdk.emit('SIGNED_IN', { user: { id: 'user-1' } });
+  await restoreStarted.promise;
+  sdk.emit('SIGNED_OUT', null);
+  restoreGate.resolve();
+  await ui.whenIdle();
+
+  assert.equal(ui.state().status, 'anonymous');
+  assert.equal(dialog.open, true);
+  assert.equal(trigger.focused, false);
+});
+
+test('cancel and native Escape-style close restore focus to the opener', async () => {
+  const client = createAuthClient({
+    sdk: fakeSdk([]), url: 'https://p.supabase.co', publishableKey: 'sb_publishable_test', storage: memoryStorage(),
+  });
+  const first = fakeDialog();
+  const firstTrigger = new FakeElement();
+  const firstUi = initAuthUi({ authClient: client, dialog: first.dialog, redirectTo: 'https://example.org/' });
+  firstUi.open({ action: 'sign-in', returnHash: '#new-analysis', trigger: firstTrigger });
+  await first.elements['#auth-cancel'].dispatch('click');
+  assert.equal(firstTrigger.focused, true);
+
+  const second = fakeDialog();
+  const secondTrigger = new FakeElement();
+  const secondUi = initAuthUi({ authClient: client, dialog: second.dialog, redirectTo: 'https://example.org/' });
+  secondUi.open({ action: 'sign-in', returnHash: '#new-analysis', trigger: secondTrigger });
+  await second.dialog.dispatch('cancel', { preventDefault() {} });
+  second.dialog.close();
+  assert.equal(secondTrigger.focused, true);
+});
+
+test('application action router keeps public analysis independent and opens Account when authenticated', async () => {
+  const opened = [];
+  const dispatched = [];
+  let analysisCalls = 0;
+  let state = { status: 'disabled', user: null };
+  const router = createAuthActionRouter({
+    getAuthState: () => state,
+    openAuth(intent) { opened.push(intent); return state.status !== 'disabled'; },
+    dispatchIntent(intent) { dispatched.push(intent); },
+  });
+
+  assert.equal(await router.runPublicAnalysis(async () => { analysisCalls += 1; return 'report'; }), 'report');
+  assert.equal(analysisCalls, 1);
+
+  state = { status: 'authenticated', user: { id: 'user-1' } };
+  router.route({ action: 'sign-in', returnHash: '#new-analysis' });
+  router.route({ action: 'saved-papers', returnHash: '#new-analysis' });
+  assert.deepEqual(opened.map((intent) => intent.action), ['sign-in']);
+  assert.deepEqual(dispatched.map((intent) => intent.action), ['saved-papers']);
+});
+
+test('authenticated Account stays open across a token refresh when no intent is pending', async () => {
+  const sdk = fakeSdk([]);
+  const client = createAuthClient({
+    sdk, url: 'https://p.supabase.co', publishableKey: 'sb_publishable_test', storage: memoryStorage(),
+  });
+  const { dialog } = fakeDialog();
+  const ui = initAuthUi({ authClient: client, dialog, redirectTo: 'https://example.org/' });
+  sdk.emit('SIGNED_IN', { user: { id: 'user-1' } });
+  await ui.whenIdle();
+  const router = createAuthActionRouter({
+    getAuthState: () => ui.state(),
+    openAuth: (intent) => ui.open(intent),
+    dispatchIntent() {},
+  });
+
+  router.route({ action: 'sign-in', returnHash: '#new-analysis' });
+  assert.equal(dialog.open, true);
+  sdk.emit('TOKEN_REFRESHED', { user: { id: 'user-1' } });
+  await ui.whenIdle();
+  assert.equal(dialog.open, true);
+});
+
+test('protected action routes through Auth storage and restores exactly once', async () => {
+  const sdk = fakeSdk([]);
+  const storage = memoryStorage();
+  const client = createAuthClient({
+    sdk, url: 'https://p.supabase.co', publishableKey: 'sb_publishable_test', storage, now: () => 1_800_000,
+  });
+  const { dialog } = fakeDialog();
+  const restored = [];
+  const ui = initAuthUi({
+    authClient: client, dialog, redirectTo: 'https://example.org/', consumeIntent: (intent) => restored.push(intent),
+  });
+  const router = createAuthActionRouter({
+    getAuthState: () => ui.state(),
+    openAuth: (intent) => ui.open(intent),
+    dispatchIntent: (intent) => restored.push(intent),
+  });
+
+  router.route({ action: 'save-paper', entityId: 'paper-42', returnHash: '#new-analysis' });
+  assert.ok(storage.getItem('idea-radar-auth-intent'));
+  sdk.emit('SIGNED_IN', { user: { id: 'user-1' } });
+  sdk.emit('TOKEN_REFRESHED', { user: { id: 'user-1' } });
+  await ui.whenIdle();
+
+  assert.deepEqual(restored.map((intent) => intent.action), ['save-paper']);
+  assert.equal(storage.getItem('idea-radar-auth-intent'), null);
 });
 
 test('Auth dialog copy is complete in the closed English and Chinese dictionaries', () => {
@@ -221,6 +429,7 @@ test('Auth dialog copy is complete in the closed English and Chinese dictionarie
     'auth.unavailableShort', 'auth.status.sending', 'auth.status.emailSent',
     'auth.status.redirecting', 'auth.status.signedOut', 'auth.error.email',
     'auth.error.emailSend', 'auth.error.provider', 'auth.error.signOut', 'auth.error.session',
+    'auth.error.intentRestore',
   ];
   for (const locale of ['en', 'zh']) {
     const { t } = createTranslator({ locale });
@@ -237,7 +446,7 @@ test('sign-in UI uses a native labelled dialog with an announced status region',
   assert.match(html, /id="auth-cancel"[^>]*type="button"/i);
 });
 
-test('provider failure is localized, keeps email available, and anonymous analysis stays independent', async () => {
+test('provider failure is localized and keeps email available', async () => {
   const { dialog, elements } = fakeDialog();
   const authClient = {
     enabled: true,
@@ -255,7 +464,4 @@ test('provider failure is localized, keeps email available, and anonymous analys
   assert.equal(elements['#auth-email-submit'].disabled, false);
   assert.doesNotMatch(elements['#auth-status'].textContent, /leaked detail/);
 
-  const app = await import('node:fs/promises').then(({ readFile }) => readFile(new URL('../public/app.js', import.meta.url), 'utf8'));
-  assert.match(app, /fetch\(apiEndpoint\('analyze-idea'/);
-  assert.doesNotMatch(app, /if\s*\([^)]*auth[^)]*\)\s*[^\n]*fetch\(apiEndpoint\('analyze-idea'/i);
 });
