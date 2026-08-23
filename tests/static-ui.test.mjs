@@ -135,9 +135,13 @@ test('results render canonical ranked papers with full abstracts and readable ci
   assert.match(i18n, /'report\.relevance': 'relevance score'/i);
   assert.match(script, /evidenceReferences/);
   assert.match(script, /data-paper-id/);
+  assert.match(script, /paper-meta-row/);
+  assert.match(script, /data-paper-action/);
+  assert.match(script, /data-export-format/);
   assert.doesNotMatch(script, /renderClosestWork\(report\.closestWork\)/);
   assert.doesNotMatch(script, /Grounded in:[^\n]*evidencePaperIds/);
   assert.match(resultStyles, /\.related-paper-list\s*\{[\s\S]*grid-template-columns:\s*1fr/i);
+  assert.match(resultStyles, /\.paper-meta-row\s*\{/i);
   assert.match(styles, /--font-body:\s*1\.125rem/i);
   assert.match(styles, /@media\s*\(max-width:\s*899px\)[\s\S]*--font-body:\s*1\.0625rem/i);
   assert.match(resultStyles, /\.paper-abstract\s*\{[\s\S]*font-size:\s*var\(--font-body\)[\s\S]*line-height:\s*1\.7/i);

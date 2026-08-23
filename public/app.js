@@ -43,6 +43,9 @@ let progressHoldTicks = 0;
 let latestCorpus = null;
 let latestCorpusMode;
 let latestReport = null;
+const unavailableActionIntents = Object.freeze({
+  'action.exportUnavailable': 'export',
+});
 
 const configuredApiBase = window.__IDEA_RADAR_CONFIG__?.apiBaseUrl?.trim();
 const edgeApiBase = window.location.hostname === 'mamingsuper.github.io' && configuredApiBase
@@ -104,6 +107,19 @@ function authorNames(authors) {
   return asArray(authors)
     .map((author) => author && typeof author === 'object' ? String(author.name ?? '').trim() : '')
     .filter(Boolean);
+}
+
+function requiresAccount(action, paperId) {
+  void paperId;
+  uiState.setAuthIntent(action);
+  renderUiState();
+}
+
+function showUnavailableAction(messageKey) {
+  const intent = unavailableActionIntents[messageKey];
+  if (!intent) return;
+  uiState.setAuthIntent(intent);
+  renderUiState();
 }
 
 function appendTextList(parent, items, className = 'plain-list') {
@@ -230,11 +246,7 @@ function renderRelatedPapers(items) {
     });
 
     const rankColumn = element('div', { className: 'paper-rank' });
-    rankColumn.append(
-      element('span', { className: 'paper-rank-number', text: `#${String(rank).padStart(2, '0')}` }),
-      element('span', { className: 'paper-score-label', text: t('report.relevance') }),
-      element('strong', { className: 'paper-score', text: formatScore(paper.score) }),
-    );
+    rankColumn.append(element('span', { className: 'paper-rank-number', text: `#${String(rank).padStart(2, '0')}` }));
 
     const body = element('div', { className: 'paper-body' });
     const citationLine = element('div', { className: 'paper-citation-line' });
@@ -248,16 +260,20 @@ function renderRelatedPapers(items) {
     const names = authorNames(paper.authors);
     if (names.length) body.append(element('p', { className: 'paper-authors', text: names.join(', ') }));
 
-    const chips = element('div', { className: 'paper-detail-chips' });
-    if (paper.division) chips.append(element('span', { text: paper.division }));
-    for (const keyword of asArray(paper.keywords).slice(0, 8)) chips.append(element('span', { text: keyword }));
-    if (chips.childElementCount) body.append(chips);
-
     body.append(element('p', { className: 'abstract-label', text: t('report.abstract') }));
     body.append(element('p', { className: 'paper-abstract', text: paper.abstract ?? t('report.abstractUnavailable') }));
 
+    const metaRow = element('div', { className: 'paper-meta-row' });
+    metaRow.append(element('span', {
+      className: 'paper-meta-score',
+      text: `${t('report.relevance')}: ${formatScore(paper.score)}`,
+    }));
+    if (paper.division) metaRow.append(element('span', { className: 'paper-meta-chip', text: paper.division }));
+    for (const keyword of asArray(paper.keywords).slice(0, 8)) {
+      metaRow.append(element('span', { className: 'paper-meta-chip', text: keyword }));
+    }
     if (paper.sourceUrl) {
-      body.append(element('a', {
+      metaRow.append(element('a', {
         className: 'source-link',
         text: t('report.originalProgram'),
         attributes: {
@@ -267,6 +283,30 @@ function renderRelatedPapers(items) {
         },
       }));
     }
+    body.append(metaRow);
+
+    const actions = element('div', { className: 'paper-actions' });
+    const title = paper.title ?? t('report.thisPaper');
+    const saveButton = element('button', {
+      text: t('report.savePaper'),
+      attributes: {
+        type: 'button',
+        'data-paper-action': 'save',
+        'aria-label': t('report.savePaperFor', { title }),
+      },
+    });
+    saveButton.addEventListener('click', () => requiresAccount('save-paper', paper.paperId));
+    const exportButton = element('button', {
+      text: t('report.exportCitation'),
+      attributes: {
+        type: 'button',
+        'data-export-format': 'bibtex',
+        'aria-label': t('report.exportCitationFor', { title }),
+      },
+    });
+    exportButton.addEventListener('click', () => showUnavailableAction('action.exportUnavailable'));
+    actions.append(saveButton, exportButton);
+    body.append(actions);
 
     article.append(rankColumn, body);
     list.append(article);

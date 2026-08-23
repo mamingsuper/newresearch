@@ -130,3 +130,16 @@ test('each related paper is appended exactly once', async () => {
   const matches = script.match(/list\.append\(article\)/g) ?? [];
   assert.equal(matches.length, 1);
 });
+
+test('paper result actions are explicit and do not pretend to persist', async () => {
+  const script = await text('public/app.js');
+  const i18n = await text('public/i18n.js');
+  assert.match(script, /data-paper-action/);
+  assert.match(script, /data-export-format/);
+  assert.match(script, /requiresAccount/);
+  assert.match(script, /requiresAccount\('save-paper', paper\.paperId\)/);
+  assert.match(script, /showUnavailableAction\('action\.exportUnavailable'\)/);
+  assert.match(i18n, /'auth\.intent\.save-paper':/);
+  assert.match(i18n, /'auth\.intent\.export':/);
+  assert.doesNotMatch(script, /localStorage\.setItem\([^)]*idea/i);
+});

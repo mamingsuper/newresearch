@@ -19,7 +19,7 @@
 .related-paper-card {
   position: relative;
   display: grid;
-  grid-template-columns: 132px minmax(0, 1fr);
+  grid-template-columns: 96px minmax(0, 1fr);
   min-width: 0;
   overflow: visible;
   border: 1px solid var(--ink);
@@ -50,21 +50,6 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: var(--font-label);
   font-weight: 900;
-}
-
-.paper-score-label {
-  margin-top: 12px;
-  color: var(--muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: var(--font-control);
-  font-weight: 800;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-}
-
-.paper-score {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 1.1rem;
 }
 
 .paper-body {
@@ -132,21 +117,62 @@
   line-height: 1.55;
 }
 
-.paper-detail-chips {
+.paper-meta-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
-  margin-bottom: 22px;
-  font-size: var(--font-meta);
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  color: var(--muted);
+  font-size: var(--font-control);
 }
 
-.paper-detail-chips span {
+.paper-meta-score,
+.paper-meta-chip,
+.paper-meta-row .source-link {
   padding: 5px 8px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: var(--mint);
-  font-size: var(--font-meta);
+  background: var(--surface);
+  font-size: var(--font-control);
   font-weight: 750;
+}
+
+.paper-meta-score {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.paper-meta-chip {
+  color: var(--ink);
+  background: var(--mint);
+}
+
+.paper-meta-row .source-link {
+  color: var(--blue);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.paper-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.paper-actions button {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--ink);
+  color: var(--ink);
+  background: var(--surface-strong);
+  font-weight: 800;
+}
+
+.paper-actions button:hover,
+.paper-actions button:focus-visible {
+  color: #fff;
+  background: var(--blue);
 }
 
 .abstract-label {
@@ -297,17 +323,12 @@
 
   .paper-rank {
     display: grid;
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: auto 1fr;
     align-items: center;
     gap: 10px;
     padding: 14px 16px;
     border-right: 0;
     border-bottom: 1px solid var(--line);
-  }
-
-  .paper-score-label {
-    margin-top: 0;
-    text-align: right;
   }
 
   .paper-body {
