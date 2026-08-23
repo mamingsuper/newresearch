@@ -6,6 +6,9 @@
   "engines": {
     "node": ">=22.9.0"
   },
+  "dependencies": {
+    "@huggingface/transformers": "4.2.0"
+  },
   "scripts": {
     "dev": "node --env-file-if-exists=.env src/server.mjs",
     "start": "node --env-file-if-exists=.env src/server.mjs",

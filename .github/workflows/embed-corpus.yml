@@ -1,0 +1,35 @@
+name: Embed corpus with Nomic
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: corpus-embedding
+  cancel-in-progress: false
+
+jobs:
+  embed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      NOMIC_EMBEDDING_MODEL: nomic-ai/nomic-embed-text-v1.5
+      EMBEDDING_BATCH_SIZE: 16
+      EMBEDDING_LEASE_SECONDS: 900
+      EMBEDDING_MAX_ATTEMPTS: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Corpus stats before embedding
+        run: npm run corpus:stats -- --json
+      - name: Generate all pending embeddings
+        run: npm run corpus:embed -- --until-empty
+      - name: Corpus stats after embedding
+        run: npm run corpus:stats -- --json
