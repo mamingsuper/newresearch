@@ -1,11 +1,13 @@
 -- Private, user-owned research workspaces.
 -- Browser roles receive only the table operations and RPCs required by the UI.
 
-create schema if not exists private;
-revoke all on schema private from public, anon, authenticated;
-grant usage on schema private to authenticated;
+create schema if not exists workspace_private;
+revoke all on schema workspace_private from public, anon, authenticated, service_role;
+grant usage on schema workspace_private to authenticated, service_role;
+alter default privileges in schema workspace_private
+  revoke execute on functions from public, anon, authenticated;
 
-create or replace function private.valid_saved_paper_tags(candidate text[])
+create or replace function workspace_private.valid_saved_paper_tags(candidate text[])
 returns boolean
 language sql
 immutable
@@ -22,8 +24,8 @@ as $$
     );
 $$;
 
-revoke all on function private.valid_saved_paper_tags(text[]) from public, anon, authenticated;
-grant execute on function private.valid_saved_paper_tags(text[]) to authenticated;
+revoke all on function workspace_private.valid_saved_paper_tags(text[]) from public, anon, authenticated;
+grant execute on function workspace_private.valid_saved_paper_tags(text[]) to authenticated;
 
 create table if not exists public.profiles (
   user_id uuid primary key references auth.users (id) on delete cascade,
@@ -44,7 +46,7 @@ create table if not exists public.saved_papers (
     constraint saved_papers_note_length check (char_length(note) <= 4000),
   tags text[] not null default '{}'::text[]
     constraint saved_papers_tag_count check (cardinality(tags) <= 20)
-    constraint saved_papers_tag_items check (private.valid_saved_paper_tags(tags)),
+    constraint saved_papers_tag_items check (workspace_private.valid_saved_paper_tags(tags)),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   primary key (user_id, paper_id)
@@ -53,6 +55,7 @@ create table if not exists public.saved_papers (
 create table if not exists public.analysis_sessions (
   id uuid primary key default extensions.gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
+  client_request_id uuid not null,
   title text not null
     constraint analysis_sessions_title_length check (char_length(title) between 1 and 200),
   idea_text text not null
@@ -66,13 +69,16 @@ create table if not exists public.analysis_sessions (
     constraint analysis_sessions_corpus_object check (jsonb_typeof(corpus_snapshot) = 'object')
     constraint analysis_sessions_corpus_size check (octet_length(corpus_snapshot::text) <= 65536),
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint analysis_sessions_user_request_unique unique (user_id, client_request_id)
 );
 
 create table if not exists public.analysis_messages (
   id uuid primary key default extensions.gen_random_uuid(),
   session_id uuid not null references public.analysis_sessions (id) on delete cascade,
   user_id uuid not null references auth.users (id) on delete cascade,
+  sequence_no smallint not null
+    constraint analysis_messages_sequence_positive check (sequence_no >= 1),
   role text not null
     constraint analysis_messages_role check (role in ('user', 'assistant')),
   content jsonb not null
@@ -84,7 +90,8 @@ create table if not exists public.analysis_messages (
       or
       (role = 'assistant' and jsonb_typeof(content) = 'object')
     ),
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  constraint analysis_messages_session_sequence_unique unique (session_id, sequence_no)
 );
 
 create index if not exists saved_papers_user_created_at_idx
@@ -96,7 +103,7 @@ create index if not exists analysis_sessions_user_updated_at_idx
 create index if not exists analysis_messages_session_created_at_idx
   on public.analysis_messages (session_id, created_at);
 
-create or replace function private.set_updated_at()
+create or replace function workspace_private.set_updated_at()
 returns trigger
 language plpgsql
 security invoker
@@ -108,25 +115,25 @@ begin
 end;
 $$;
 
-revoke all on function private.set_updated_at() from public, anon, authenticated;
-grant execute on function private.set_updated_at() to authenticated;
+revoke all on function workspace_private.set_updated_at() from public, anon, authenticated;
+grant execute on function workspace_private.set_updated_at() to authenticated;
 
 drop trigger if exists profiles_set_updated_at on public.profiles;
 create trigger profiles_set_updated_at
 before update on public.profiles
-for each row execute function private.set_updated_at();
+for each row execute function workspace_private.set_updated_at();
 
 drop trigger if exists saved_papers_set_updated_at on public.saved_papers;
 create trigger saved_papers_set_updated_at
 before update on public.saved_papers
-for each row execute function private.set_updated_at();
+for each row execute function workspace_private.set_updated_at();
 
 drop trigger if exists analysis_sessions_set_updated_at on public.analysis_sessions;
 create trigger analysis_sessions_set_updated_at
 before update on public.analysis_sessions
-for each row execute function private.set_updated_at();
+for each row execute function workspace_private.set_updated_at();
 
-create or replace function private.handle_new_user()
+create or replace function workspace_private.handle_new_user()
 returns trigger
 language plpgsql
 security definer
@@ -154,13 +161,13 @@ begin
 end;
 $$;
 
-alter function private.handle_new_user() owner to postgres;
-revoke all on function private.handle_new_user() from public, anon, authenticated;
+alter function workspace_private.handle_new_user() owner to postgres;
+revoke all on function workspace_private.handle_new_user() from public, anon, authenticated;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
 after insert on auth.users
-for each row execute function private.handle_new_user();
+for each row execute function workspace_private.handle_new_user();
 
 alter table public.profiles enable row level security;
 alter table public.saved_papers enable row level security;
@@ -174,8 +181,9 @@ revoke all on table public.analysis_messages from anon, authenticated;
 
 grant select, update on table public.profiles to authenticated;
 grant select, insert, update, delete on table public.saved_papers to authenticated;
-grant select, insert, update, delete on table public.analysis_sessions to authenticated;
-grant select, insert on table public.analysis_messages to authenticated;
+grant select, delete on table public.analysis_sessions to authenticated;
+grant update (title) on table public.analysis_sessions to authenticated;
+grant select on table public.analysis_messages to authenticated;
 
 drop policy if exists "profiles owner select" on public.profiles;
 create policy "profiles owner select"
@@ -248,15 +256,6 @@ using (
   and (select auth.uid()) = user_id
 );
 
-drop policy if exists "analysis_sessions owner insert" on public.analysis_sessions;
-create policy "analysis_sessions owner insert"
-on public.analysis_sessions for insert
-to authenticated
-with check (
-  (select auth.uid()) is not null
-  and (select auth.uid()) = user_id
-);
-
 drop policy if exists "analysis_sessions owner update" on public.analysis_sessions;
 create policy "analysis_sessions owner update"
 on public.analysis_sessions for update
@@ -294,22 +293,7 @@ using (
   )
 );
 
-drop policy if exists "analysis_messages owner insert" on public.analysis_messages;
-create policy "analysis_messages owner insert"
-on public.analysis_messages for insert
-to authenticated
-with check (
-  (select auth.uid()) is not null
-  and analysis_messages.user_id = (select auth.uid())
-  and exists (
-    select 1
-    from public.analysis_sessions
-    where analysis_sessions.id = analysis_messages.session_id
-      and analysis_sessions.user_id = (select auth.uid())
-  )
-);
-
-create or replace function private.get_my_saved_papers_impl()
+create or replace function workspace_private.get_my_saved_papers_impl()
 returns table (
   paper_id uuid,
   note text,
@@ -356,9 +340,9 @@ begin
 end;
 $$;
 
-alter function private.get_my_saved_papers_impl() owner to postgres;
-revoke all on function private.get_my_saved_papers_impl() from public, anon, authenticated;
-grant execute on function private.get_my_saved_papers_impl() to authenticated;
+alter function workspace_private.get_my_saved_papers_impl() owner to postgres;
+revoke all on function workspace_private.get_my_saved_papers_impl() from public, anon, authenticated;
+grant execute on function workspace_private.get_my_saved_papers_impl() to authenticated;
 
 create or replace function public.get_my_saved_papers()
 returns table (
@@ -379,13 +363,15 @@ stable
 security invoker
 set search_path = ''
 as $$
-  select * from private.get_my_saved_papers_impl();
+  select * from workspace_private.get_my_saved_papers_impl();
 $$;
 
 revoke all on function public.get_my_saved_papers() from public, anon, authenticated;
 grant execute on function public.get_my_saved_papers() to authenticated;
 
-create or replace function private.save_analysis_session_impl(
+create or replace function workspace_private.save_analysis_session_impl(
+  target_user_id uuid,
+  target_client_request_id uuid,
   target_title text,
   target_idea_text text,
   target_report jsonb,
@@ -399,14 +385,21 @@ security definer
 set search_path = ''
 as $$
 declare
-  current_user_id uuid;
   created_session_id uuid;
 begin
-  current_user_id := (select auth.uid());
-  if current_user_id is null then
-    raise sqlstate '28000' using message = 'authentication required';
+  if target_user_id is null then
+    raise exception 'target_user_id is required' using errcode = '22023';
   end if;
-
+  if target_client_request_id is null then
+    raise exception 'client_request_id is required' using errcode = '22023';
+  end if;
+  if not exists (
+    select 1
+    from auth.users
+    where auth.users.id = target_user_id
+  ) then
+    raise exception 'target user does not exist' using errcode = '23503';
+  end if;
   if target_title is null or not (pg_catalog.char_length(target_title) between 1 and 200) then
     raise exception 'title must contain between 1 and 200 characters' using errcode = '22023';
   end if;
@@ -429,6 +422,7 @@ begin
 
   insert into public.analysis_sessions (
     user_id,
+    client_request_id,
     title,
     idea_text,
     report,
@@ -436,29 +430,47 @@ begin
     corpus_snapshot
   )
   values (
-    current_user_id,
+    target_user_id,
+    target_client_request_id,
     target_title,
     target_idea_text,
     target_report,
     target_language,
     target_corpus_snapshot
   )
+  on conflict (user_id, client_request_id) do nothing
   returning id into created_session_id;
 
-  insert into public.analysis_messages (session_id, user_id, role, content)
+  if created_session_id is null then
+    select id
+    into created_session_id
+    from public.analysis_sessions
+    where user_id = target_user_id
+      and client_request_id = target_client_request_id;
+
+    if created_session_id is null then
+      raise exception 'unable to resolve idempotent session save' using errcode = '40001';
+    end if;
+
+    return created_session_id;
+  end if;
+
+  insert into public.analysis_messages (session_id, user_id, sequence_no, role, content)
   values
-    (created_session_id, current_user_id, 'user', pg_catalog.to_jsonb(target_idea_text)),
-    (created_session_id, current_user_id, 'assistant', target_report);
+    (created_session_id, target_user_id, 1, 'user', pg_catalog.to_jsonb(target_idea_text)),
+    (created_session_id, target_user_id, 2, 'assistant', target_report);
 
   return created_session_id;
 end;
 $$;
 
-alter function private.save_analysis_session_impl(text, text, jsonb, text, jsonb) owner to postgres;
-revoke all on function private.save_analysis_session_impl(text, text, jsonb, text, jsonb) from public, anon, authenticated;
-grant execute on function private.save_analysis_session_impl(text, text, jsonb, text, jsonb) to authenticated;
+alter function workspace_private.save_analysis_session_impl(uuid, uuid, text, text, jsonb, text, jsonb) owner to postgres;
+revoke all on function workspace_private.save_analysis_session_impl(uuid, uuid, text, text, jsonb, text, jsonb) from public, anon, authenticated, service_role;
+grant execute on function workspace_private.save_analysis_session_impl(uuid, uuid, text, text, jsonb, text, jsonb) to service_role;
 
 create or replace function public.save_analysis_session(
+  target_user_id uuid,
+  client_request_id uuid,
   title text,
   idea_text text,
   report jsonb,
@@ -471,8 +483,16 @@ volatile
 security invoker
 set search_path = ''
 as $$
-  select private.save_analysis_session_impl(title, idea_text, report, language, corpus_snapshot);
+  select workspace_private.save_analysis_session_impl(
+    target_user_id,
+    client_request_id,
+    title,
+    idea_text,
+    report,
+    language,
+    corpus_snapshot
+  );
 $$;
 
-revoke all on function public.save_analysis_session(text, text, jsonb, text, jsonb) from public, anon, authenticated;
-grant execute on function public.save_analysis_session(text, text, jsonb, text, jsonb) to authenticated;
+revoke all on function public.save_analysis_session(uuid, uuid, text, text, jsonb, text, jsonb) from public, anon, authenticated, service_role;
+grant execute on function public.save_analysis_session(uuid, uuid, text, text, jsonb, text, jsonb) to service_role;
