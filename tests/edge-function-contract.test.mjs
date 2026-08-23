@@ -31,6 +31,10 @@ test('analyze-idea Edge Function enforces the public beta evidence contract', as
   assert.match(source, /store\s*:\s*false/);
   assert.match(source, /json_schema/);
   assert.match(source, /strict\s*:\s*true/);
+  assert.match(source, /required:\s*\['paperId',\s*'relationship',\s*'overlapDimensions'\]/);
+  assert.match(source, /maxItems\s*:\s*5/);
+  assert.match(source, /maxItems\s*:\s*3/);
+  assert.match(source, /Canonical title, conference, evidence excerpt, and source URL/i);
   assert.match(source, /allowedPaperIds/i);
   assert.match(source, /canonical|groundClosestWork/i);
   assert.match(source, /Cache-Control|cache-control/i);
