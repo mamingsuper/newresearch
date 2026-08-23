@@ -1,4 +1,4 @@
-import { corsHeaders, getCorpusStats, originAllowed } from '../_shared/idea-radar.ts';
+import { corsHeaders, getCorpusStats, originAllowed } from '../_shared/corpus-status-core.ts';
 
 function json(data: unknown, status: number, origin: string | null, cacheControl: string): Response {
   return new Response(JSON.stringify(data), {
@@ -6,7 +6,7 @@ function json(data: unknown, status: number, origin: string | null, cacheControl
     headers: {
       'content-type': 'application/json; charset=utf-8',
       'cache-control': cacheControl,
-      ...corsHeaders(origin, 'GET, OPTIONS'),
+      ...corsHeaders(origin),
     },
   });
 }
@@ -17,7 +17,7 @@ Deno.serve(async (req: Request) => {
     return json({ error: { code: 'ORIGIN_NOT_ALLOWED', message: 'Origin not allowed.' } }, 403, null, 'no-store');
   }
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders(origin, 'GET, OPTIONS') });
+    return new Response(null, { status: 204, headers: corsHeaders(origin) });
   }
   if (req.method !== 'GET') {
     return json(
