@@ -75,6 +75,7 @@ test('idea radar landing page is a centered query-first research workbench', asy
   const html = await readFile(path.join(publicDir, 'index.html'), 'utf8');
   const styles = await readFile(path.join(publicDir, 'styles.css'), 'utf8');
   const script = await readFile(path.join(publicDir, 'app.js'), 'utf8');
+  const analysisForm = await readFile(path.join(publicDir, 'analysis-form.js'), 'utf8');
   const i18n = await readFile(path.join(publicDir, 'i18n.js'), 'utf8');
 
   assert.match(html, /Scan your research idea against the frontier/i);
@@ -105,7 +106,9 @@ test('idea radar landing page is a centered query-first research workbench', asy
   assert.doesNotMatch(script, /PROGRESS_STAGES[\s\S]*target:\s*100/);
   assert.match(script, /function\s+completeProgress\s*\(\s*\)[\s\S]*100[\s\S]*'progress\.ready'/);
   assert.match(i18n, /'progress\.ready': 'Report ready'/);
-  assert.match(script, /if\s*\(!response\.ok\)[\s\S]*throw[\s\S]*completeProgress\(\)/);
+  assert.match(script, /initPublicAnalysisForm/);
+  assert.match(analysisForm, /if\s*\(!response\.ok\)\s*throw/);
+  assert.match(script, /onSuccess\(report\)\s*\{[\s\S]*completeProgress\(\)/);
 
   assert.match(styles, /--paper:\s*#f6f0e4/i);
   assert.match(styles, /--blue:\s*#2447d8/i);

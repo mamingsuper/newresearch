@@ -31,6 +31,7 @@ export function initAuthUi({
   let statusKey = '';
   let sessionQueue = Promise.resolve();
   let initialSessionPromise;
+  let successfulCleanupPending = false;
 
   function setStatus(key) {
     statusKey = key;
@@ -54,8 +55,9 @@ export function initAuthUi({
   }
 
   function restoreFocus() {
-    if (returnFocus?.isConnected && typeof returnFocus.focus === 'function') returnFocus.focus();
+    const target = returnFocus;
     returnFocus = null;
+    if (target?.isConnected && typeof target.focus === 'function') target.focus();
   }
 
   function closeAndRestoreFocus() {
@@ -63,17 +65,34 @@ export function initAuthUi({
     else restoreFocus();
   }
 
+  function showIntentRestoreFailure() {
+    setStatus('auth.error.intentRestore');
+    if (!dialog.open) {
+      try { dialog.showModal(); } catch { return; }
+    }
+    signOut.focus();
+  }
+
   async function processSession(nextState, revision) {
     if (revision !== authRevision) return;
     renderState(nextState);
-    if (nextState.status !== 'authenticated') return;
+    if (nextState.status !== 'authenticated') {
+      successfulCleanupPending = false;
+      return;
+    }
     const intent = authClient.consumeIntent();
     try {
-      if (intent) await consumeIntent(intent);
+      if (intent) {
+        await consumeIntent(intent);
+        successfulCleanupPending = true;
+      }
     } catch {
-      if (announcedState.status === 'authenticated') setStatus('auth.error.intentRestore');
+      successfulCleanupPending = false;
+      if (announcedState.status === 'authenticated') showIntentRestoreFailure();
     } finally {
-      if (intent && announcedState.status === 'authenticated' && latestState.status === 'authenticated') {
+      if (announcedState.status !== 'authenticated') successfulCleanupPending = false;
+      if (revision === authRevision && successfulCleanupPending && latestState.status === 'authenticated') {
+        successfulCleanupPending = false;
         closeAndRestoreFocus();
       }
     }

@@ -4,6 +4,7 @@ import { createCorpusStatusModel, normalizeCorpus, presentRenderedReport } from 
 import { createAuthClient } from './auth-client.js';
 import { initAuthUi } from './auth-ui.js';
 import { createAuthActionRouter } from './auth-actions.js';
+import { initPublicAnalysisForm } from './analysis-form.js';
 
 const LOCALE_STORAGE_KEY = 'idea-radar-locale';
 const readLocale = () => {
@@ -558,38 +559,6 @@ for (const chip of exampleChips) {
   chip.addEventListener('click', () => useExample(t(`example.idea.${chip.dataset.exampleKey}`)));
 }
 
-form.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  clearError();
-  const idea = ideaInput.value.trim();
-  if (idea.length < 20) {
-    showError('error.tooShort');
-    ideaInput.focus();
-    return;
-  }
-
-  setBusy(true);
-  startProgress();
-  try {
-    const response = await authActionRouter.runPublicAnalysis(() => (
-      fetch(apiEndpoint('analyze-idea', '/api/analyze'), {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ idea }),
-      })
-    ));
-    const payload = await response.json();
-    if (!response.ok) throw new Error('analysis-failed');
-    completeProgress();
-    renderReport(payload.data ?? payload);
-  } catch (error) {
-    failProgress();
-    showError('error.analysis');
-  } finally {
-    setBusy(false);
-  }
-});
-
 function renderCorpusStatus(corpus, mode) {
   const model = createCorpusStatusModel(corpus, mode, t);
   latestCorpus = model.corpus;
@@ -666,6 +635,35 @@ authActionRouter = createAuthActionRouter({
     uiState.setAuthIntent(action);
     renderUiState();
   },
+});
+initPublicAnalysisForm({
+  form,
+  readIdea: () => ideaInput.value,
+  onReset: clearError,
+  onInvalid() {
+    showError('error.tooShort');
+    ideaInput.focus();
+  },
+  onStart() {
+    setBusy(true);
+    startProgress();
+  },
+  analyze: (idea) => authActionRouter.runPublicAnalysis(() => (
+    fetch(apiEndpoint('analyze-idea', '/api/analyze'), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ idea }),
+    })
+  )),
+  onSuccess(report) {
+    completeProgress();
+    renderReport(report);
+  },
+  onFailure() {
+    failProgress();
+    showError('error.analysis');
+  },
+  onFinish() { setBusy(false); },
 });
 initWorkspaceNavigation({
   sidebar: document.querySelector('#workspace-nav'),

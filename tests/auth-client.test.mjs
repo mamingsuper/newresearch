@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { createAuthClient } from '../public/auth-client.js';
 import { initAuthUi } from '../public/auth-ui.js';
 import { createAuthActionRouter } from '../public/auth-actions.js';
+import { initPublicAnalysisForm } from '../public/analysis-form.js';
 import { createTranslator } from '../public/i18n.js';
 
 function deferred() {
@@ -246,7 +247,7 @@ test('Auth UI restores one pending intent and focus on authentication', async ()
   assert.equal(ui.state().status, 'authenticated');
 });
 
-test('intent restoration rejection is localized and still closes safely with focus restoration', async () => {
+test('intent restoration rejection is localized and remains visibly actionable', async () => {
   const sdk = fakeSdk([]);
   const client = createAuthClient({
     sdk, url: 'https://p.supabase.co', publishableKey: 'sb_publishable_test', storage: memoryStorage(), now: () => 1_800_000,
@@ -267,8 +268,33 @@ test('intent restoration rejection is localized and still closes safely with foc
 
   assert.equal(elements['#auth-status'].textContent, 'localized:auth.error.intentRestore');
   assert.doesNotMatch(elements['#auth-status'].textContent, /private failure detail/);
+  assert.equal(dialog.open, true);
+  assert.equal(elements['#auth-authenticated-controls'].hidden, false);
+  assert.equal(elements['#auth-sign-out'].focused, true);
+  assert.equal(trigger.focused, false);
+});
+
+test('redirect restoration failure safely opens the authenticated dialog to show feedback', async () => {
+  const sdk = fakeSdk([], { session: { user: { id: 'user-1', email: 'reader@example.org' } } });
+  const client = createAuthClient({
+    sdk, url: 'https://p.supabase.co', publishableKey: 'sb_publishable_test', storage: memoryStorage(), now: () => 1_800_000,
+  });
+  client.rememberIntent({ action: 'saved-papers', returnHash: '#new-analysis' });
+  const { dialog, elements } = fakeDialog();
+  const ui = initAuthUi({
+    authClient: client,
+    dialog,
+    redirectTo: 'https://example.org/',
+    consumeIntent: async () => { throw new Error('must not surface'); },
+    t: (key) => `localized:${key}`,
+  });
+
   assert.equal(dialog.open, false);
-  assert.equal(trigger.focused, true);
+  await ui.whenIdle();
+  assert.equal(dialog.open, true);
+  assert.equal(elements['#auth-status'].textContent, 'localized:auth.error.intentRestore');
+  assert.equal(elements['#auth-authenticated-controls'].hidden, false);
+  assert.equal(elements['#auth-sign-out'].focused, true);
 });
 
 test('repeated signed-in events consume once and serialize cleanup', async () => {
@@ -332,7 +358,7 @@ test('sign-out during delayed restoration prevents obsolete signed-in cleanup', 
   assert.equal(trigger.focused, false);
 });
 
-test('cancel and native Escape-style close restore focus to the opener', async () => {
+test('Cancel closes through the real listener and restores focus to the opener', async () => {
   const client = createAuthClient({
     sdk: fakeSdk([]), url: 'https://p.supabase.co', publishableKey: 'sb_publishable_test', storage: memoryStorage(),
   });
@@ -341,18 +367,58 @@ test('cancel and native Escape-style close restore focus to the opener', async (
   const firstUi = initAuthUi({ authClient: client, dialog: first.dialog, redirectTo: 'https://example.org/' });
   firstUi.open({ action: 'sign-in', returnHash: '#new-analysis', trigger: firstTrigger });
   await first.elements['#auth-cancel'].dispatch('click');
+  assert.equal(first.dialog.open, false);
   assert.equal(firstTrigger.focused, true);
+});
 
-  const second = fakeDialog();
+test('focus restoration clears the retained opener before focus re-enters the dialog', async () => {
+  const client = createAuthClient({
+    sdk: fakeSdk([]), url: 'https://p.supabase.co', publishableKey: 'sb_publishable_test', storage: memoryStorage(),
+  });
+  const { dialog, elements } = fakeDialog();
+  const firstTrigger = new FakeElement();
   const secondTrigger = new FakeElement();
-  const secondUi = initAuthUi({ authClient: client, dialog: second.dialog, redirectTo: 'https://example.org/' });
-  secondUi.open({ action: 'sign-in', returnHash: '#new-analysis', trigger: secondTrigger });
-  await second.dialog.dispatch('cancel', { preventDefault() {} });
-  second.dialog.close();
+  const ui = initAuthUi({ authClient: client, dialog, redirectTo: 'https://example.org/' });
+  firstTrigger.focus = () => {
+    firstTrigger.focused = true;
+    ui.open({ action: 'sign-in', returnHash: '#new-analysis', trigger: secondTrigger });
+  };
+
+  ui.open({ action: 'sign-in', returnHash: '#new-analysis', trigger: firstTrigger });
+  await elements['#auth-cancel'].dispatch('click');
+  assert.equal(dialog.open, true);
+  await elements['#auth-cancel'].dispatch('click');
   assert.equal(secondTrigger.focused, true);
 });
 
-test('application action router keeps public analysis independent and opens Account when authenticated', async () => {
+test('application form controller submits analysis while Auth is disabled', async () => {
+  const form = new FakeElement();
+  const events = [];
+  const router = createAuthActionRouter({
+    getAuthState: () => ({ status: 'disabled', user: null }),
+    openAuth: () => false,
+    dispatchIntent() {},
+  });
+  initPublicAnalysisForm({
+    form,
+    readIdea: () => 'A sufficiently detailed public research idea',
+    onReset: () => events.push('reset'),
+    onInvalid: () => events.push('invalid'),
+    onStart: () => events.push('start'),
+    analyze: (idea) => router.runPublicAnalysis(async () => ({
+      ok: true,
+      async json() { return { data: { idea, report: true } }; },
+    })),
+    onSuccess: (report) => events.push(report.report ? 'success' : 'wrong'),
+    onFailure: () => events.push('failure'),
+    onFinish: () => events.push('finish'),
+  });
+
+  await form.dispatch('submit', { preventDefault() { events.push('prevented'); } });
+  assert.deepEqual(events, ['prevented', 'reset', 'start', 'success', 'finish']);
+});
+
+test('application action router opens authenticated Account and dispatches protected navigation', async () => {
   const opened = [];
   const dispatched = [];
   let analysisCalls = 0;
@@ -390,6 +456,8 @@ test('authenticated Account stays open across a token refresh when no intent is 
 
   router.route({ action: 'sign-in', returnHash: '#new-analysis' });
   assert.equal(dialog.open, true);
+  assert.equal(dialog.querySelector('#auth-authenticated-controls').hidden, false);
+  assert.equal(dialog.querySelector('#auth-sign-out').focused, true);
   sdk.emit('TOKEN_REFRESHED', { user: { id: 'user-1' } });
   await ui.whenIdle();
   assert.equal(dialog.open, true);
