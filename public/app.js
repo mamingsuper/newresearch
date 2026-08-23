@@ -1,8 +1,18 @@
+import { createTranslator } from './i18n.js';
+import { initWorkspaceNavigation } from './workspace.js';
+
+const LOCALE_STORAGE_KEY = 'idea-radar-locale';
+const readLocale = () => {
+  try { return window.localStorage.getItem(LOCALE_STORAGE_KEY) ?? 'en'; } catch { return 'en'; }
+};
+let translator = createTranslator({ locale: readLocale() });
+let t = translator.t;
+
 const form = document.querySelector('#analysis-form');
 const ideaInput = document.querySelector('#idea-input');
 const submitButton = document.querySelector('#submit-button');
 const exampleButton = document.querySelector('#example-button');
-const exampleChips = [...document.querySelectorAll('[data-example]')];
+const exampleChips = [...document.querySelectorAll('[data-example-key]')];
 const formError = document.querySelector('#form-error');
 const characterCount = document.querySelector('#character-count');
 const reportSection = document.querySelector('#report-section');
@@ -13,24 +23,26 @@ const searchProgress = document.querySelector('#search-progress');
 const progressBar = document.querySelector('#progress-bar');
 const progressPercent = document.querySelector('#progress-percent');
 const progressStage = document.querySelector('#progress-stage');
-
-const EXAMPLE_IDEA =
-  'I want to test whether AI literacy moderates the effect of generative-AI political messages on political trust among young adults, using a preregistered online experiment.';
+const localeSelector = document.querySelector('#locale-selector');
+const authIntentStatus = document.querySelector('#auth-intent-status');
 
 const PROGRESS_STAGES = [
-  { target: 5, label: 'Understanding the research question' },
-  { target: 20, label: 'Reading corpus scope: APSA 2026 + ICA 2026' },
-  { target: 35, label: 'Generating the query embedding' },
-  { target: 55, label: 'Running Hybrid vector + full-text retrieval' },
-  { target: 75, label: 'Ranking the most relevant papers' },
-  { target: 90, label: 'Generating evidence-grounded analysis' },
-  { target: 94, label: 'Finalizing grounded citations' },
+  { target: 5, key: 'progress.stage.understanding' },
+  { target: 20, key: 'progress.stage.scope' },
+  { target: 35, key: 'progress.stage.embedding' },
+  { target: 55, key: 'progress.stage.retrieval' },
+  { target: 75, key: 'progress.stage.ranking' },
+  { target: 90, key: 'progress.stage.analysis' },
+  { target: 94, key: 'progress.stage.citations' },
 ];
 
 let progressTimer = null;
 let progressValue = 0;
 let progressStageIndex = 0;
 let progressHoldTicks = 0;
+let latestCorpus = null;
+let latestCorpusMode;
+let latestReport = null;
 
 const configuredApiBase = window.__IDEA_RADAR_CONFIG__?.apiBaseUrl?.trim();
 const edgeApiBase = window.location.hostname === 'mamingsuper.github.io' && configuredApiBase
@@ -39,6 +51,25 @@ const edgeApiBase = window.location.hostname === 'mamingsuper.github.io' && conf
 
 function apiEndpoint(edgePath, localPath) {
   return edgeApiBase ? `${edgeApiBase}/${edgePath}` : localPath;
+}
+
+function applyStaticTranslations() {
+  document.documentElement.lang = translator.locale;
+  document.title = t('document.title');
+  for (const node of document.querySelectorAll('[data-i18n]')) node.textContent = t(node.dataset.i18n);
+  for (const node of document.querySelectorAll('[data-i18n-placeholder]')) node.placeholder = t(node.dataset.i18nPlaceholder);
+  for (const node of document.querySelectorAll('[data-i18n-aria-label]')) node.setAttribute('aria-label', t(node.dataset.i18nAriaLabel));
+}
+
+function setLocale(locale) {
+  translator = createTranslator({ locale });
+  t = translator.t;
+  try { window.localStorage.setItem(LOCALE_STORAGE_KEY, translator.locale); } catch { /* Preference is optional. */ }
+  applyStaticTranslations();
+  localeSelector.value = translator.locale;
+  updateCharacterCount();
+  if (latestCorpus) renderCorpusStatus(latestCorpus, latestCorpusMode);
+  if (latestReport) renderReport(latestReport, { scroll: false });
 }
 
 function clearElement(element) {
@@ -93,19 +124,19 @@ function attachAbstractPreviewToggle(wrapper, trigger) {
 }
 
 function createAbstractPreview(abstract, sourceUrl) {
-  const text = String(abstract ?? '').trim() || 'Abstract unavailable.';
+  const text = String(abstract ?? '').trim() || t('report.abstractUnavailable');
   const preview = element('span', {
     className: 'paper-abstract-preview',
     attributes: { role: 'tooltip' },
   });
   preview.append(
-    element('span', { className: 'paper-abstract-preview-label', text: 'Abstract' }),
+    element('span', { className: 'paper-abstract-preview-label', text: t('report.abstract') }),
     element('span', { className: 'paper-abstract-preview-text', text }),
   );
   if (sourceUrl) {
     preview.append(element('a', {
       className: 'paper-abstract-preview-source',
-      text: 'Open original program ↗',
+      text: t('report.openProgram'),
       attributes: {
         href: sourceUrl,
         target: '_blank',
@@ -123,12 +154,12 @@ function createPaperTitlePreview(paper) {
   });
   const title = element('h4', {
     className: 'paper-title-preview-trigger',
-    text: paper.title ?? 'Untitled paper',
+    text: paper.title ?? t('report.untitled'),
     attributes: {
       tabindex: '0',
       role: 'button',
       'aria-expanded': 'false',
-      'aria-label': `Show abstract for ${paper.title ?? 'this paper'}`,
+      'aria-label': t('report.showAbstract', { title: paper.title ?? t('report.thisPaper') }),
     },
   });
   attachAbstractPreviewToggle(wrapper, title);
@@ -144,15 +175,15 @@ function createPaperTitlePreview(paper) {
 
 function renderIdeaProfile(profile = {}) {
   const section = element('section', { className: 'report-card profile-card' });
-  section.append(element('p', { className: 'card-kicker', text: 'Idea profile' }));
-  section.append(element('h3', { text: profile.summary ?? 'The idea profile could not be resolved.' }));
+  section.append(element('p', { className: 'card-kicker', text: t('report.ideaProfile') }));
+  section.append(element('h3', { text: profile.summary ?? t('report.profileUnresolved') }));
 
   const facts = element('dl', { className: 'profile-grid' });
   const entries = [
-    ['Topics', asArray(profile.topics).length ? profile.topics.join(', ') : 'Not yet resolved'],
-    ['Population', profile.population ?? 'Not specified'],
-    ['Method', profile.method ?? 'Not specified'],
-    ['Mechanism', asArray(profile.mechanisms).length ? profile.mechanisms.join(', ') : 'Not specified'],
+    [t('report.topics'), asArray(profile.topics).length ? profile.topics.join(', ') : t('report.notResolved')],
+    [t('report.population'), profile.population ?? t('report.notSpecified')],
+    [t('report.method'), profile.method ?? t('report.notSpecified')],
+    [t('report.mechanism'), asArray(profile.mechanisms).length ? profile.mechanisms.join(', ') : t('report.notSpecified')],
   ];
   for (const [label, value] of entries) {
     const group = element('div');
@@ -170,21 +201,21 @@ function renderRelatedPapers(items) {
     .sort((left, right) => Number(left.rank ?? Number.MAX_SAFE_INTEGER) - Number(right.rank ?? Number.MAX_SAFE_INTEGER));
   const section = element('section', { className: 'report-block' });
   const header = element('div', { className: 'section-heading related-heading' });
-  header.append(element('p', { className: 'card-kicker', text: 'Ranked related papers' }));
-  const countLabel = papers.length === 20 ? 'Top 20 Hybrid RRF results' : `${papers.length} ranked evidence records`;
-  header.append(element('h3', { text: papers.length ? countLabel : 'No related paper returned' }));
+  header.append(element('p', { className: 'card-kicker', text: t('report.relatedPapers') }));
+  const countLabel = papers.length === 20 ? t('report.topResults') : t('report.rankedRecords', { count: papers.length });
+  header.append(element('h3', { text: papers.length ? countLabel : t('report.noRelated') }));
   section.append(header);
 
   const methodNote = element('p', {
     className: 'ranking-note',
-    text: 'Ordered by the database Hybrid RRF ranking (semantic vector + full-text search). Scores are ranking signals, not calibrated probabilities.',
+    text: t('report.rankingNote'),
   });
   section.append(methodNote);
 
   if (!papers.length) {
     section.append(element('p', {
       className: 'empty-state',
-      text: 'No sufficiently direct evidence was returned from this corpus. Try a more compact formulation or adjacent terminology.',
+      text: t('report.noEvidence'),
     }));
     return section;
   }
@@ -200,15 +231,15 @@ function renderRelatedPapers(items) {
     const rankColumn = element('div', { className: 'paper-rank' });
     rankColumn.append(
       element('span', { className: 'paper-rank-number', text: `#${String(rank).padStart(2, '0')}` }),
-      element('span', { className: 'paper-score-label', text: 'relevance score' }),
+      element('span', { className: 'paper-score-label', text: t('report.relevance') }),
       element('strong', { className: 'paper-score', text: formatScore(paper.score) }),
     );
 
     const body = element('div', { className: 'paper-body' });
     const citationLine = element('div', { className: 'paper-citation-line' });
     citationLine.append(
-      element('strong', { text: paper.authorYearLabel ?? 'Conference paper' }),
-      element('span', { text: paper.conference ?? 'Conference record' }),
+      element('strong', { text: paper.authorYearLabel ?? t('report.conferencePaper') }),
+      element('span', { text: paper.conference ?? t('report.conferenceRecord') }),
     );
     body.append(citationLine);
     body.append(createPaperTitlePreview(paper));
@@ -221,13 +252,13 @@ function renderRelatedPapers(items) {
     for (const keyword of asArray(paper.keywords).slice(0, 8)) chips.append(element('span', { text: keyword }));
     if (chips.childElementCount) body.append(chips);
 
-    body.append(element('p', { className: 'abstract-label', text: 'Abstract' }));
-    body.append(element('p', { className: 'paper-abstract', text: paper.abstract ?? 'Abstract unavailable.' }));
+    body.append(element('p', { className: 'abstract-label', text: t('report.abstract') }));
+    body.append(element('p', { className: 'paper-abstract', text: paper.abstract ?? t('report.abstractUnavailable') }));
 
     if (paper.sourceUrl) {
       body.append(element('a', {
         className: 'source-link',
-        text: 'Original program ↗',
+        text: t('report.originalProgram'),
         attributes: {
           href: paper.sourceUrl,
           target: '_blank',
@@ -274,28 +305,28 @@ function renderInnovationPaths(paths, relatedPapers) {
   const pathItems = asArray(paths);
   const section = element('section', { className: 'report-block' });
   const header = element('div', { className: 'section-heading' });
-  header.append(element('p', { className: 'card-kicker', text: 'Innovation directions' }));
-  header.append(element('h3', { text: pathItems.length ? 'Where the design may become more distinctive' : 'No grounded direction returned' }));
+  header.append(element('p', { className: 'card-kicker', text: t('report.innovationDirections') }));
+  header.append(element('h3', { text: pathItems.length ? t('report.distinctive') : t('report.noDirection') }));
   section.append(header);
 
   if (!pathItems.length) {
-    section.append(element('p', { className: 'empty-state', text: 'The available evidence was not strong enough to support a differentiation path.' }));
+    section.append(element('p', { className: 'empty-state', text: t('report.noPath') }));
     return section;
   }
 
   const list = element('ol', { className: 'innovation-list' });
   for (const path of pathItems) {
     const item = element('li');
-    item.append(element('div', { className: 'inference-label', text: 'Evidence-linked inference' }));
-    item.append(element('h4', { text: path.title ?? 'Research direction' }));
+    item.append(element('div', { className: 'inference-label', text: t('report.inference') }));
+    item.append(element('h4', { text: path.title ?? t('report.direction') }));
     item.append(element('p', { text: path.rationale ?? '' }));
 
     const references = resolveEvidenceReferences(path, relatedPapers);
     if (references.length) {
       const grounding = element('div', { className: 'grounding-references' });
-      grounding.append(element('span', { className: 'grounding-label', text: 'Grounded in' }));
+      grounding.append(element('span', { className: 'grounding-label', text: t('report.groundedIn') }));
       for (const reference of references) {
-        const text = `${reference.authorYearLabel ?? 'Conference paper'} — ${reference.title ?? 'Untitled paper'}`;
+        const text = `${reference.authorYearLabel ?? t('report.conferencePaper')} — ${reference.title ?? t('report.untitled')}`;
         const wrapper = element('span', {
           className: 'grounding-reference-wrap',
           attributes: {
@@ -309,7 +340,7 @@ function renderInnovationPaths(paths, relatedPapers) {
           attributes: {
             type: 'button',
             'aria-expanded': 'false',
-            'aria-label': `Show abstract for ${reference.title ?? 'this paper'}`,
+            'aria-label': t('report.showAbstract', { title: reference.title ?? t('report.thisPaper') }),
           },
         });
         attachAbstractPreviewToggle(wrapper, trigger);
@@ -324,12 +355,13 @@ function renderInnovationPaths(paths, relatedPapers) {
   return section;
 }
 
-function renderReport(report) {
+function renderReport(report, { scroll = true } = {}) {
+  latestReport = report;
   clearElement(reportRoot);
   reportRoot.append(
     element('div', {
       className: 'coverage-notice',
-      text: report.coverageNotice ?? 'This report is limited to the currently indexed conference corpus.',
+      text: report.coverageNotice ?? t('report.coverageNotice'),
     }),
     renderIdeaProfile(report.ideaProfile),
     renderRelatedPapers(report.relatedPapers),
@@ -338,17 +370,17 @@ function renderReport(report) {
 
   const finalGrid = element('div', { className: 'final-grid' });
   const next = element('section', { className: 'report-card' });
-  next.append(element('p', { className: 'card-kicker', text: 'Recommended next steps' }));
+  next.append(element('p', { className: 'card-kicker', text: t('report.nextSteps') }));
   appendTextList(next, report.recommendedNextSteps);
 
   const limits = element('section', { className: 'report-card' });
-  limits.append(element('p', { className: 'card-kicker', text: 'Limitations' }));
+  limits.append(element('p', { className: 'card-kicker', text: t('report.limitations') }));
   appendTextList(limits, report.limitations);
   finalGrid.append(next, limits);
   reportRoot.append(finalGrid);
 
   reportSection.hidden = false;
-  reportSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (scroll) reportSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function setProgress(value, label) {
@@ -371,14 +403,14 @@ function startProgress() {
   searchProgress.hidden = false;
   progressStageIndex = 0;
   progressHoldTicks = 0;
-  setProgress(1, PROGRESS_STAGES[0].label);
+  setProgress(1, t(PROGRESS_STAGES[0].key));
 
   progressTimer = window.setInterval(() => {
     const stage = PROGRESS_STAGES[progressStageIndex];
     if (progressValue < stage.target) {
       const distance = stage.target - progressValue;
       const increment = Math.max(1, Math.ceil(distance / 4));
-      setProgress(Math.min(stage.target, progressValue + increment), stage.label);
+      setProgress(Math.min(stage.target, progressValue + increment), t(stage.key));
       return;
     }
 
@@ -387,7 +419,7 @@ function startProgress() {
       if (progressHoldTicks >= 2) {
         progressStageIndex += 1;
         progressHoldTicks = 0;
-        setProgress(progressValue, PROGRESS_STAGES[progressStageIndex].label);
+        setProgress(progressValue, t(PROGRESS_STAGES[progressStageIndex].key));
       }
     }
   }, 300);
@@ -395,12 +427,12 @@ function startProgress() {
 
 function completeProgress() {
   clearProgressTimer();
-  setProgress(100, 'Report ready');
+  setProgress(100, t('progress.ready'));
 }
 
 function failProgress() {
   clearProgressTimer();
-  if (!searchProgress.hidden) progressStage.textContent = 'Scan stopped before completion';
+  if (!searchProgress.hidden) progressStage.textContent = t('progress.stopped');
 }
 
 function setBusy(busy) {
@@ -408,7 +440,10 @@ function setBusy(busy) {
   ideaInput.disabled = busy;
   exampleButton.disabled = busy;
   for (const chip of exampleChips) chip.disabled = busy;
-  submitButton.textContent = busy ? 'Scanning corpus…' : 'Start Testing →';
+  submitButton.replaceChildren(
+    document.createTextNode(busy ? t('form.scanning') : t('form.submit')),
+    document.createTextNode(busy ? '' : ' →'),
+  );
 }
 
 function showError(message) {
@@ -432,9 +467,9 @@ function useExample(text) {
 }
 
 ideaInput.addEventListener('input', updateCharacterCount);
-exampleButton.addEventListener('click', () => useExample(EXAMPLE_IDEA));
+exampleButton.addEventListener('click', () => useExample(t('example.idea.genAiTrust')));
 for (const chip of exampleChips) {
-  chip.addEventListener('click', () => useExample(chip.dataset.example));
+  chip.addEventListener('click', () => useExample(t(`example.idea.${chip.dataset.exampleKey}`)));
 }
 
 form.addEventListener('submit', async (event) => {
@@ -442,7 +477,7 @@ form.addEventListener('submit', async (event) => {
   clearError();
   const idea = ideaInput.value.trim();
   if (idea.length < 20) {
-    showError('Please describe the idea in at least 20 characters.');
+    showError(t('error.tooShort'));
     ideaInput.focus();
     return;
   }
@@ -456,12 +491,12 @@ form.addEventListener('submit', async (event) => {
       body: JSON.stringify({ idea }),
     });
     const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error?.message ?? 'The analysis could not be completed.');
+    if (!response.ok) throw new Error(payload.error?.message ?? t('error.analysis'));
     completeProgress();
     renderReport(payload.data ?? payload);
   } catch (error) {
     failProgress();
-    showError(error instanceof Error ? error.message : 'The analysis could not be completed.');
+    showError(error instanceof Error ? error.message : t('error.analysis'));
   } finally {
     setBusy(false);
   }
@@ -480,6 +515,8 @@ function normalizeCorpus(payload) {
 }
 
 function renderCorpusStatus(corpus, mode) {
+  latestCorpus = corpus;
+  latestCorpusMode = mode;
   const count = Number(corpus.paperCount);
   const abstracts = Number(corpus.papersWithAbstract);
   const conferenceParts = corpus.conferences.map((conference) => {
@@ -488,18 +525,18 @@ function renderCorpusStatus(corpus, mode) {
     const year = conference.year;
     const papers = Number(conference.papers);
     const label = [name, year].filter(Boolean).join(' ');
-    return Number.isInteger(papers) ? `${label} · ${formatCount(papers)} papers` : label;
+    return Number.isInteger(papers) ? `${label} · ${t('corpus.papers', { count: formatCount(papers) })}` : label;
   }).filter(Boolean);
 
   if (conferenceParts.length) {
     const abstractCount = Number.isInteger(abstracts) ? abstracts : count;
-    corpusLedger.textContent = `${conferenceParts.join(' + ')}${Number.isInteger(abstractCount) ? ` = ${formatCount(abstractCount)} abstracts` : ''}`;
+    corpusLedger.textContent = `${conferenceParts.join(' + ')}${Number.isInteger(abstractCount) ? ` = ${t('corpus.abstracts', { count: formatCount(abstractCount) })}` : ''}`;
   }
 
-  const modeLabel = mode === 'live' ? 'Live corpus' : mode === 'mock' ? 'Demo corpus' : 'Corpus';
+  const modeLabel = mode === 'live' ? t('corpus.live') : mode === 'mock' ? t('corpus.demo') : t('corpus.default');
   modeBadge.replaceChildren(
     element('span', { className: 'live-dot', attributes: { 'aria-hidden': 'true' } }),
-    document.createTextNode(` ${modeLabel}${Number.isInteger(count) ? ` · ${formatCount(count)} papers` : ''}`),
+    document.createTextNode(` ${modeLabel}${Number.isInteger(count) ? ` · ${t('corpus.papers', { count: formatCount(count) })}` : ''}`),
   );
 }
 
@@ -532,5 +569,16 @@ async function loadCorpusStatus() {
   renderCorpusStatus(corpus, mode);
 }
 
+applyStaticTranslations();
+localeSelector.value = translator.locale;
+localeSelector.addEventListener('change', () => setLocale(localeSelector.value));
+initWorkspaceNavigation({
+  sidebar: document.querySelector('#workspace-nav'),
+  menuButton: document.querySelector('#workspace-menu-button'),
+  authIntentHandler(intent) {
+    const intentLabel = t(`auth.intent.${intent}`);
+    authIntentStatus.textContent = t('auth.unavailable', { intent: intentLabel });
+  },
+});
 updateCharacterCount();
 loadCorpusStatus();

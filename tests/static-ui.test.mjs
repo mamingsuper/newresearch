@@ -29,10 +29,12 @@ test('workbench HTML exposes the required accessible landmarks and Pages-safe as
 
 test('browser renderer avoids unsafe HTML interpolation', async () => {
   const script = await readFile(path.join(publicDir, 'app.js'), 'utf8');
+  const i18n = await readFile(path.join(publicDir, 'i18n.js'), 'utf8');
 
   assert.doesNotMatch(script, /innerHTML\s*=/);
   assert.match(script, /noopener/);
-  assert.match(script, /Original program/);
+  assert.match(script, /t\('report\.originalProgram'\)/);
+  assert.match(i18n, /'report\.originalProgram': 'Original program ↗'/);
 });
 
 test('server serves the workbench and blocks path traversal', async () => {
@@ -66,6 +68,7 @@ test('idea radar landing page is a centered query-first research workbench', asy
   const html = await readFile(path.join(publicDir, 'index.html'), 'utf8');
   const styles = await readFile(path.join(publicDir, 'styles.css'), 'utf8');
   const script = await readFile(path.join(publicDir, 'app.js'), 'utf8');
+  const i18n = await readFile(path.join(publicDir, 'i18n.js'), 'utf8');
 
   assert.match(html, /Scan your research idea against the frontier/i);
   assert.match(html, /APSA 2026/);
@@ -86,17 +89,15 @@ test('idea radar landing page is a centered query-first research workbench', asy
   assert.match(styles, /\.query-hero\s*\{[\s\S]*max-width:\s*1080px/i);
   assert.match(styles, /textarea\s*\{[\s\S]*min-height:\s*240px[\s\S]*font-size:\s*var\(--font-control\)/i);
 
-  assert.match(script, /Understanding the research question/);
-  assert.match(script, /Reading corpus scope: APSA 2026 \+ ICA 2026/);
-  assert.match(script, /Generating the query embedding/);
-  assert.match(script, /Hybrid vector \+ full-text retrieval/);
-  assert.match(script, /Ranking the most relevant papers/);
-  assert.match(script, /Generating evidence-grounded analysis/);
-  assert.match(script, /Finalizing grounded citations/);
+  for (const key of ['understanding', 'scope', 'embedding', 'retrieval', 'ranking', 'analysis', 'citations']) {
+    assert.match(script, new RegExp(`progress\\.stage\\.${key}`));
+    assert.match(i18n, new RegExp(`'progress\\.stage\\.${key}':`));
+  }
   assert.match(script, /target:\s*90/);
   assert.match(script, /target:\s*94/);
   assert.doesNotMatch(script, /PROGRESS_STAGES[\s\S]*target:\s*100/);
-  assert.match(script, /function\s+completeProgress\s*\(\s*\)[\s\S]*100[\s\S]*Report ready/);
+  assert.match(script, /function\s+completeProgress\s*\(\s*\)[\s\S]*100[\s\S]*t\('progress\.ready'\)/);
+  assert.match(i18n, /'progress\.ready': 'Report ready'/);
   assert.match(script, /if\s*\(!response\.ok\)[\s\S]*throw[\s\S]*completeProgress\(\)/);
 
   assert.match(styles, /--paper:\s*#f6f0e4/i);
@@ -115,6 +116,7 @@ test('idea radar landing page is a centered query-first research workbench', asy
 
 test('results render canonical ranked papers with full abstracts and readable citations', async () => {
   const script = await readFile(path.join(publicDir, 'app.js'), 'utf8');
+  const i18n = await readFile(path.join(publicDir, 'i18n.js'), 'utf8');
   const styles = await readFile(path.join(publicDir, 'styles.css'), 'utf8');
   const resultStyles = await readFile(path.join(publicDir, 'results-v2.css'), 'utf8');
 
@@ -122,7 +124,8 @@ test('results render canonical ranked papers with full abstracts and readable ci
   assert.match(script, /function\s+renderRelatedPapers/);
   assert.match(script, /authorYearLabel/);
   assert.match(script, /paper\.abstract/);
-  assert.match(script, /relevance score/i);
+  assert.match(script, /t\('report\.relevance'\)/);
+  assert.match(i18n, /'report\.relevance': 'relevance score'/i);
   assert.match(script, /evidenceReferences/);
   assert.match(script, /data-paper-id/);
   assert.doesNotMatch(script, /renderClosestWork\(report\.closestWork\)/);
