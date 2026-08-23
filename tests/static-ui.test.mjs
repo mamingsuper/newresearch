@@ -21,9 +21,10 @@ test('workbench HTML exposes the required accessible landmarks and Pages-safe as
   assert.match(html, /id="report-root"/i);
   assert.match(html, /currently indexed|corpus/i);
   assert.match(html, /href="\.\/styles\.css"/i);
+  assert.match(html, /href="\.\/results-v2\.css"/i);
   assert.match(html, /src="\.\/config\.js"/i);
   assert.match(html, /type="module"[^>]+src="\.\/app\.js"/i);
-  assert.doesNotMatch(html, /(?:href|src)="\/(?:styles\.css|app\.js|config\.js)"/i);
+  assert.doesNotMatch(html, /(?:href|src)="\/(?:styles\.css|results-v2\.css|app\.js|config\.js)"/i);
 });
 
 test('browser renderer avoids unsafe HTML interpolation', async () => {
@@ -114,7 +115,7 @@ test('idea radar landing page is a centered query-first research workbench', asy
 
 test('results render canonical ranked papers with full abstracts and readable citations', async () => {
   const script = await readFile(path.join(publicDir, 'app.js'), 'utf8');
-  const styles = await readFile(path.join(publicDir, 'styles.css'), 'utf8');
+  const resultStyles = await readFile(path.join(publicDir, 'results-v2.css'), 'utf8');
 
   assert.match(script, /relatedPapers/);
   assert.match(script, /function\s+renderRelatedPapers/);
@@ -125,6 +126,6 @@ test('results render canonical ranked papers with full abstracts and readable ci
   assert.match(script, /data-paper-id/);
   assert.doesNotMatch(script, /renderClosestWork\(report\.closestWork\)/);
   assert.doesNotMatch(script, /Grounded in:[^\n]*evidencePaperIds/);
-  assert.match(styles, /\.related-paper-list\s*\{[\s\S]*grid-template-columns:\s*1fr/i);
-  assert.match(styles, /\.paper-abstract\s*\{[\s\S]*font-size:\s*1(?:\.0)?rem[\s\S]*line-height:\s*1\.65/i);
+  assert.match(resultStyles, /\.related-paper-list\s*\{[\s\S]*grid-template-columns:\s*1fr/i);
+  assert.match(resultStyles, /\.paper-abstract\s*\{[\s\S]*font-size:\s*1(?:\.0)?rem[\s\S]*line-height:\s*1\.65/i);
 });
