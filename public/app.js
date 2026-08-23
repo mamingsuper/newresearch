@@ -80,6 +80,68 @@ function appendTextList(parent, items, className = 'plain-list') {
   parent.append(list);
 }
 
+function setAbstractPreviewOpen(wrapper, trigger, open) {
+  wrapper.setAttribute('data-preview-open', open ? 'true' : 'false');
+  trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function attachAbstractPreviewToggle(wrapper, trigger) {
+  trigger.addEventListener('click', () => {
+    const open = wrapper.getAttribute('data-preview-open') === 'true';
+    setAbstractPreviewOpen(wrapper, trigger, !open);
+  });
+}
+
+function createAbstractPreview(abstract, sourceUrl) {
+  const text = String(abstract ?? '').trim() || 'Abstract unavailable.';
+  const preview = element('span', {
+    className: 'paper-abstract-preview',
+    attributes: { role: 'tooltip' },
+  });
+  preview.append(
+    element('span', { className: 'paper-abstract-preview-label', text: 'Abstract' }),
+    element('span', { className: 'paper-abstract-preview-text', text }),
+  );
+  if (sourceUrl) {
+    preview.append(element('a', {
+      className: 'paper-abstract-preview-source',
+      text: 'Open original program ↗',
+      attributes: {
+        href: sourceUrl,
+        target: '_blank',
+        rel: 'noreferrer noopener',
+      },
+    }));
+  }
+  return preview;
+}
+
+function createPaperTitlePreview(paper) {
+  const wrapper = element('div', {
+    className: 'paper-title-preview-wrap',
+    attributes: { 'data-preview-open': 'false' },
+  });
+  const title = element('h4', {
+    className: 'paper-title-preview-trigger',
+    text: paper.title ?? 'Untitled paper',
+    attributes: {
+      tabindex: '0',
+      role: 'button',
+      'aria-expanded': 'false',
+      'aria-label': `Show abstract for ${paper.title ?? 'this paper'}`,
+    },
+  });
+  attachAbstractPreviewToggle(wrapper, title);
+  title.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      title.click();
+    }
+  });
+  wrapper.append(title, createAbstractPreview(paper.abstract, paper.sourceUrl));
+  return wrapper;
+}
+
 function renderIdeaProfile(profile = {}) {
   const section = element('section', { className: 'report-card profile-card' });
   section.append(element('p', { className: 'card-kicker', text: 'Idea profile' }));
@@ -149,7 +211,7 @@ function renderRelatedPapers(items) {
       element('span', { text: paper.conference ?? 'Conference record' }),
     );
     body.append(citationLine);
-    body.append(element('h4', { text: paper.title ?? 'Untitled paper' }));
+    body.append(createPaperTitlePreview(paper));
 
     const names = authorNames(paper.authors);
     if (names.length) body.append(element('p', { className: 'paper-authors', text: names.join(', ') }));
@@ -182,10 +244,19 @@ function renderRelatedPapers(items) {
 }
 
 function resolveEvidenceReferences(path, relatedPapers) {
-  const provided = asArray(path.evidenceReferences);
-  if (provided.length) return provided;
-
   const paperById = new Map(asArray(relatedPapers).map((paper) => [String(paper.paperId ?? ''), paper]));
+  const provided = asArray(path.evidenceReferences);
+  if (provided.length) {
+    return provided.map((reference) => {
+      const paper = paperById.get(String(reference.paperId ?? ''));
+      return {
+        ...reference,
+        abstract: paper?.abstract ?? reference.abstract ?? '',
+        sourceUrl: reference.sourceUrl ?? paper?.sourceUrl ?? '',
+      };
+    });
+  }
+
   return asArray(path.evidencePaperIds)
     .map((paperId) => paperById.get(String(paperId)))
     .filter(Boolean)
@@ -194,6 +265,7 @@ function resolveEvidenceReferences(path, relatedPapers) {
       authorYearLabel: paper.authorYearLabel,
       title: paper.title,
       conference: paper.conference,
+      abstract: paper.abstract,
       sourceUrl: paper.sourceUrl,
     }));
 }
@@ -224,21 +296,25 @@ function renderInnovationPaths(paths, relatedPapers) {
       grounding.append(element('span', { className: 'grounding-label', text: 'Grounded in' }));
       for (const reference of references) {
         const text = `${reference.authorYearLabel ?? 'Conference paper'} — ${reference.title ?? 'Untitled paper'}`;
-        const attributes = { 'data-paper-id': reference.paperId ?? '' };
-        if (reference.sourceUrl) {
-          grounding.append(element('a', {
-            className: 'grounding-reference',
-            text,
-            attributes: {
-              ...attributes,
-              href: reference.sourceUrl,
-              target: '_blank',
-              rel: 'noreferrer noopener',
-            },
-          }));
-        } else {
-          grounding.append(element('span', { className: 'grounding-reference', text, attributes }));
-        }
+        const wrapper = element('span', {
+          className: 'grounding-reference-wrap',
+          attributes: {
+            'data-paper-id': reference.paperId ?? '',
+            'data-preview-open': 'false',
+          },
+        });
+        const trigger = element('button', {
+          className: 'grounding-reference',
+          text,
+          attributes: {
+            type: 'button',
+            'aria-expanded': 'false',
+            'aria-label': `Show abstract for ${reference.title ?? 'this paper'}`,
+          },
+        });
+        attachAbstractPreviewToggle(wrapper, trigger);
+        wrapper.append(trigger, createAbstractPreview(reference.abstract, reference.sourceUrl));
+        grounding.append(wrapper);
       }
       item.append(grounding);
     }
