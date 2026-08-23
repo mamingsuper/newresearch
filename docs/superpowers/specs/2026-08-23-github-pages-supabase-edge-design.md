@@ -1,7 +1,7 @@
 # GitHub Pages + Supabase Edge Deployment Design
 
 **Date:** 2026-08-23
-**Status:** Proposed for implementation after user review
+**Status:** Approved for implementation
 **Product:** Idea Radar / Research Frontier Radar
 
 ## Goal
@@ -282,7 +282,7 @@ Add a dedicated Pages workflow for `main`.
 Build/deploy behavior:
 
 1. checkout repository;
-2. install dependencies with the existing lockfile;
+2. install dependencies with `npm install --ignore-scripts` (the repository does not currently commit a lockfile);
 3. run the repository verification commands;
 4. prepare a Pages artifact containing the static `public/` assets and `.nojekyll`;
 5. verify all asset references are valid under `/newresearch/`;
