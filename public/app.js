@@ -5,6 +5,7 @@ import { createAuthClient } from './auth-client.js';
 import { initAuthUi } from './auth-ui.js';
 import { createAuthActionRouter } from './auth-actions.js';
 import { initPublicAnalysisForm } from './analysis-form.js';
+import { createOptimisticSavedPaperController, createSavedPaperStore, renderSavedPaperLibrary } from './saved-papers.js';
 
 const LOCALE_STORAGE_KEY = 'idea-radar-locale';
 const readLocale = () => {
@@ -33,6 +34,10 @@ const localeSelector = document.querySelector('#locale-selector');
 const authIntentStatus = document.querySelector('#auth-intent-status');
 const accountEntry = document.querySelector('.account-entry');
 const authDialog = document.querySelector('#auth-dialog');
+const savedPapersSection = document.querySelector('#saved-papers');
+const savedPapersRoot = document.querySelector('#saved-papers-root');
+const savedPapersFilter = document.querySelector('#saved-papers-filter');
+const savedPapersStatus = document.querySelector('#saved-papers-status');
 
 const PROGRESS_STAGES = [
   { target: 5, key: 'progress.stage.understanding' },
@@ -53,6 +58,9 @@ let latestReport = null;
 let authState = { status: 'disabled', user: null };
 let authUi;
 let authActionRouter;
+let savedPaperController;
+let savedPaperStore;
+let savedPaperItems = [];
 const unavailableActionIntents = Object.freeze({
   'action.exportUnavailable': 'export',
 });
@@ -86,6 +94,8 @@ function setLocale(locale) {
   renderUiState();
   if (latestCorpus) renderCorpusStatus(latestCorpus, latestCorpusMode);
   if (latestReport) renderReport(latestReport, { scroll: false });
+  if (!savedPapersSection.hidden) renderSavedLibrary();
+  updatePaperActionButtons();
 }
 
 function clearElement(element) {
@@ -130,9 +140,9 @@ function requestAccountAction(action, entityId = '', trigger = document.activeEl
   });
 }
 
-function restoreAuthenticatedIntent(intent) {
-  window.dispatchEvent(new CustomEvent('idea-radar:auth-intent', { detail: intent }));
-  if (intent.returnHash) window.location.hash = intent.returnHash;
+async function restoreAuthenticatedIntent(intent) {
+  await executeAuthenticatedIntent(intent);
+  if (intent.action !== 'saved-papers' && intent.returnHash) window.location.hash = intent.returnHash;
   let target = null;
   if (intent.action === 'save-paper' && intent.entityId) {
     const card = [...document.querySelectorAll('[data-paper-id]')]
@@ -150,6 +160,90 @@ function showUnavailableAction(messageKey) {
   if (!intent) return;
   uiState.setAuthIntent(intent);
   renderUiState();
+}
+
+function announceSaved(key, params = {}) {
+  const message = t(key, params);
+  savedPapersStatus.textContent = message;
+  savedPapersStatus.hidden = false;
+  authIntentStatus.textContent = message;
+  authIntentStatus.hidden = false;
+}
+
+function savedErrorKey(code) {
+  if (code === 'saved_papers_auth_required') return 'saved.error.auth';
+  if (['saved_papers_invalid_paper', 'saved_papers_invalid_note', 'saved_papers_invalid_tags'].includes(code)) return 'saved.error.invalid';
+  return 'saved.error.unavailable';
+}
+
+function updatePaperActionButtons() {
+  if (!savedPaperController) return;
+  for (const button of document.querySelectorAll('[data-paper-action="save"]')) {
+    const paperId = button.closest('[data-paper-id]')?.dataset.paperId ?? '';
+    const pending = savedPaperController.isPending(paperId);
+    const saved = savedPaperController.isSaved(paperId);
+    button.disabled = pending;
+    button.setAttribute('aria-pressed', String(saved));
+    button.textContent = t(pending ? 'saved.saving' : saved ? 'saved.savedButton' : 'report.savePaper');
+  }
+}
+
+function renderSavedLibrary() {
+  renderSavedPaperLibrary({
+    root: savedPapersRoot,
+    items: savedPaperItems,
+    query: savedPapersFilter.value,
+    t,
+    async onRemove(paperId) {
+      const removed = await savedPaperController.remove(paperId);
+      if (!removed) return;
+      savedPaperItems = savedPaperItems.filter((item) => item.paperId !== paperId);
+      renderSavedLibrary();
+      announceSaved('saved.removed');
+    },
+    onExport() { showUnavailableAction('action.exportUnavailable'); },
+    async onUpdateNote(paperId, values) {
+      try {
+        await savedPaperStore.updateNote(paperId, values);
+        savedPaperItems = savedPaperItems.map((item) => item.paperId === paperId ? { ...item, ...values } : item);
+        renderSavedLibrary();
+        announceSaved('saved.updated');
+      } catch (error) {
+        announceSaved(savedErrorKey(error?.code));
+      }
+    },
+  });
+}
+
+async function loadSavedLibrary() {
+  savedPapersSection.hidden = false;
+  window.location.hash = '#saved-papers';
+  announceSaved('saved.loading');
+  try {
+    savedPaperItems = await savedPaperStore.list();
+    savedPaperController.replace(savedPaperItems);
+    renderSavedLibrary();
+    announceSaved('saved.loaded', { count: savedPaperItems.length });
+    savedPapersFilter.focus();
+  } catch (error) {
+    savedPaperItems = [];
+    savedPaperController.replace([]);
+    renderSavedLibrary();
+    announceSaved(savedErrorKey(error?.code));
+  }
+}
+
+async function executeAuthenticatedIntent(intent = {}) {
+  if (intent.action === 'save-paper') {
+    const saved = await savedPaperController.save(intent.entityId);
+    if (saved) announceSaved('saved.saved');
+    return saved;
+  }
+  if (intent.action === 'saved-papers') {
+    await loadSavedLibrary();
+    return true;
+  }
+  return false;
 }
 
 function appendTextList(parent, items, className = 'plain-list') {
@@ -322,6 +416,7 @@ function renderRelatedPapers(items) {
       attributes: {
         type: 'button',
         'data-paper-action': 'save',
+        'aria-pressed': 'false',
         'aria-label': t('report.savePaperFor', { title }),
       },
     });
@@ -345,6 +440,7 @@ function renderRelatedPapers(items) {
     list.append(article);
   }
   section.append(list);
+  queueMicrotask(updatePaperActionButtons);
   return section;
 }
 
@@ -611,6 +707,15 @@ const authClient = createAuthClient({
   publishableKey: publicConfig.supabasePublishableKey ?? '',
   storage: authStorage,
 });
+savedPaperStore = createSavedPaperStore({
+  supabase: authClient.getSupabaseClient(),
+  getUserId: () => authState.user?.id ?? null,
+});
+savedPaperController = createOptimisticSavedPaperController({
+  store: savedPaperStore,
+  onChange: updatePaperActionButtons,
+  onError: (code) => announceSaved(savedErrorKey(code)),
+});
 authUi = initAuthUi({
   authClient,
   dialog: authDialog,
@@ -620,15 +725,21 @@ authUi = initAuthUi({
     authState = state;
     accountEntry.dataset.authState = state.status;
     accountEntry.textContent = t(state.status === 'authenticated' ? 'nav.account' : 'nav.signIn');
+    if (state.status !== 'authenticated') {
+      savedPaperItems = [];
+      savedPaperController.replace([]);
+      savedPapersSection.hidden = true;
+    }
   },
   consumeIntent(intent) {
-    restoreAuthenticatedIntent(intent);
+    return restoreAuthenticatedIntent(intent);
   },
 });
 authActionRouter = createAuthActionRouter({
   getAuthState: () => authState,
   openAuth: (intent) => authUi.open(intent),
   dispatchIntent(intent) {
+    void executeAuthenticatedIntent(intent);
     window.dispatchEvent(new CustomEvent('idea-radar:auth-intent', { detail: intent }));
   },
   onUnavailable(action) {
@@ -673,6 +784,7 @@ initWorkspaceNavigation({
     queueMicrotask(() => requestAccountAction(intent, '', trigger));
   },
 });
+savedPapersFilter.addEventListener('input', renderSavedLibrary);
 renderUiState();
 updateCharacterCount();
 loadCorpusStatus();

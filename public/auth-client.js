@@ -139,6 +139,7 @@ export function createAuthClient({ sdk, url, publishableKey, storage, now = Date
   return Object.freeze({
     enabled,
     get state() { return state; },
+    getSupabaseClient() { return enabled ? client : null; },
     rememberIntent,
     consumeIntent,
     async signInWithEmail(email, { redirectTo } = {}) {

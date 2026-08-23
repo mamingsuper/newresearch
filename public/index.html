@@ -139,6 +139,21 @@
         <p data-i18n="preview.libraryCopy">Browse and compare the indexed conference evidence here as the next workspace stage arrives.</p>
       </section>
 
+      <section class="saved-papers-shell shell" id="saved-papers" aria-labelledby="saved-papers-title" hidden>
+        <div class="saved-papers-heading">
+          <div>
+            <p class="eyebrow" data-i18n="saved.eyebrow">Private research library</p>
+            <h2 id="saved-papers-title" data-i18n="saved.title">Saved papers</h2>
+          </div>
+          <label for="saved-papers-filter">
+            <span data-i18n="saved.filterLabel">Filter saved papers</span>
+            <input id="saved-papers-filter" type="search" autocomplete="off" data-i18n-placeholder="saved.filterPlaceholder" placeholder="Title, author, keyword, note…" />
+          </label>
+        </div>
+        <p id="saved-papers-status" role="status" aria-live="polite" hidden></p>
+        <div id="saved-papers-root"></div>
+      </section>
+
       <section class="report-shell shell" id="report-section" aria-labelledby="report-title" tabindex="-1" hidden>
         <div class="report-heading">
           <div>
