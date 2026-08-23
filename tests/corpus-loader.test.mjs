@@ -7,10 +7,12 @@ function fakeStore(existing = new Map()) {
   const calls = { upserts: [], jobs: [], completed: [], failed: [] };
   return { calls, async startIngestionRun() { return { id: 'run-1' }; }, async getPaperState(paper) { return existing.get(`${paper.conference.slug}:${paper.conference.year}:${paper.sourceRecordId}`) ?? null; }, async upsertPaper(input) { calls.upserts.push(input); return { id: input.id }; }, async upsertEmbeddingJob(input) { calls.jobs.push(input); }, async completeIngestionRun(input) { calls.completed.push(input); }, async failIngestionRun(input) { calls.failed.push(input); } };
 }
-test('loader inserts a new paper and queues one embedding job', async () => {
+test('loader inserts a new paper and queues one Nomic embedding job', async () => {
   const store = fakeStore(); const result = await loadCorpus({ records: [SAMPLE_PAPERS[0]], store, sourceLabel: 'ICA reviewed', inputSha256: 'a'.repeat(64) });
   assert.deepEqual(result.counts, { total: 1, inserted: 1, updated: 0, unchanged: 0, rejected: 0, embeddingJobsCreated: 1 });
   assert.equal(store.calls.upserts.length, 1); assert.equal(store.calls.jobs.length, 1); assert.equal(store.calls.jobs[0].inputHash, embeddingInputHash(SAMPLE_PAPERS[0]));
+  assert.equal(store.calls.jobs[0].model, 'nomic-ai/nomic-embed-text-v1.5');
+  assert.equal(store.calls.jobs[0].dimensions, 512);
 });
 test('loader treats identical raw content as unchanged', async () => {
   const paper = SAMPLE_PAPERS[0]; const store = fakeStore(new Map([[`ica:2026:${paper.sourceRecordId}`, { id: paper.id, rawHash: paper.rawHash, embeddingInputHash: embeddingInputHash(paper) }]]));
