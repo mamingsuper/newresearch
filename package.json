@@ -15,6 +15,7 @@
     "test": "node --test",
     "check": "node scripts/check-project.mjs",
     "build": "node scripts/build.mjs",
+    "pages:build": "node scripts/build-pages.mjs",
     "import:snapshot": "node scripts/import-snapshot.mjs",
     "corpus:validate": "node scripts/corpus-validate.mjs",
     "corpus:load": "node --env-file-if-exists=.env scripts/corpus-load.mjs",

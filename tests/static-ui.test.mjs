@@ -13,14 +13,17 @@ import { SAMPLE_PAPERS } from '../src/fixtures/sample-papers.mjs';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const publicDir = path.join(root, 'public');
 
-test('workbench HTML exposes the required accessible landmarks', async () => {
+test('workbench HTML exposes the required accessible landmarks and Pages-safe assets', async () => {
   const html = await readFile(path.join(publicDir, 'index.html'), 'utf8');
 
   assert.match(html, /<textarea[^>]+id="idea-input"/i);
   assert.match(html, /id="analysis-form"/i);
   assert.match(html, /id="report-root"/i);
   assert.match(html, /currently indexed|corpus/i);
-  assert.match(html, /type="module"[^>]+src="\/app\.js"/i);
+  assert.match(html, /href="\.\/styles\.css"/i);
+  assert.match(html, /src="\.\/config\.js"/i);
+  assert.match(html, /type="module"[^>]+src="\.\/app\.js"/i);
+  assert.doesNotMatch(html, /(?:href|src)="\/(?:styles\.css|app\.js|config\.js)"/i);
 });
 
 test('browser renderer avoids unsafe HTML interpolation', async () => {
@@ -78,7 +81,9 @@ test('idea radar landing page exposes the editorial live-testing layout', async 
   assert.match(styles, /--red:\s*#ff5a3d/i);
   assert.match(styles, /linear-gradient\([^)]*rgba\([^)]*\)[^)]*1px/i);
 
-  assert.match(script, /fetch\(['"]\/api\/corpus['"]\)/);
-  assert.match(script, /fetch\(['"]\/api\/health['"]\)/);
-  assert.match(script, /fetch\(['"]\/api\/analyze['"],/);
+  assert.match(script, /__IDEA_RADAR_CONFIG__/);
+  assert.match(script, /analyze-idea/);
+  assert.match(script, /corpus-status/);
+  assert.match(script, /\/api\/analyze/);
+  assert.match(script, /\/api\/corpus/);
 });
