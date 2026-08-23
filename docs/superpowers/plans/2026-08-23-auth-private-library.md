@@ -113,7 +113,7 @@ git commit -m "build: self-host pinned Supabase browser client"
 **Interfaces:**
 - Produces: `profiles`, `saved_papers`, `analysis_sessions`, `analysis_messages`
 - Produces: owner-only RLS policies and `updated_at` triggers
-- Produces: `get_my_saved_papers()` and `save_analysis_session(...)` authenticated RPCs
+- Produces: authenticated `get_my_saved_papers()` and service-role-only `save_analysis_session(...)` public invoker RPCs backed by `workspace_private` definer helpers
 - Consumes: `auth.users(id)` and `public.papers(id)`
 
 - [ ] **Step 1: Write failing migration assertions**
@@ -122,15 +122,23 @@ git commit -m "build: self-host pinned Supabase browser client"
 test('workspace migration creates constrained user-owned tables and RLS', async () => {
   const sql = await text('supabase/migrations/202608230004_user_workspace.sql');
   for (const table of ['profiles', 'saved_papers', 'analysis_sessions', 'analysis_messages']) {
-    assert.match(sql, new RegExp(`create table public\\.${table}`, 'i'));
+    assert.match(sql, new RegExp(`create table if not exists public\\.${table}`, 'i'));
     assert.match(sql, new RegExp(`alter table public\\.${table} enable row level security`, 'i'));
   }
   assert.match(sql, /primary key\s*\(user_id,\s*paper_id\)/i);
-  assert.match(sql, /auth\.uid\(\) is not null[\s\S]*auth\.uid\(\) = user_id/i);
+  assert.match(sql, /\(select auth\.uid\(\)\) is not null[\s\S]*\(select auth\.uid\(\)\) = user_id/i);
   assert.match(sql, /idea_text[\s\S]*char_length\(idea_text\) between 20 and 5000/i);
+  assert.match(sql, /client_request_id uuid not null/i);
+  assert.match(sql, /unique\s*\(user_id,\s*client_request_id\)/i);
+  assert.match(sql, /sequence_no smallint not null/i);
+  assert.match(sql, /unique\s*\(session_id,\s*sequence_no\)/i);
+  assert.match(sql, /grant update \(title\) on table public\.analysis_sessions to authenticated/i);
+  assert.doesNotMatch(sql, /grant[^;]*insert[^;]*public\.analysis_sessions[^;]*authenticated/i);
+  assert.match(sql, /grant execute on function public\.save_analysis_session\([^;]*to service_role/i);
+  assert.doesNotMatch(sql, /grant execute on function public\.save_analysis_session\([^;]*to authenticated/i);
   assert.match(sql, /get_my_saved_papers/i);
   assert.match(sql, /save_analysis_session/i);
-  assert.doesNotMatch(sql, /grant[\s\S]*to anon/i);
+  assert.doesNotMatch(sql, /grant[^;]+\bto anon\b/i);
 });
 ```
 
@@ -142,15 +150,15 @@ Expected: FAIL with missing migration.
 
 - [ ] **Step 3: Implement schema, indexes, triggers, and policies**
 
-Create exact tables from the spec. Add indexes on `saved_papers(user_id, created_at desc)`, `analysis_sessions(user_id, updated_at desc)`, and `analysis_messages(session_id, created_at)`. Bound notes to 4,000 characters, tags to 20 entries of 64 characters, titles to 200 characters, and message JSON serialized size to 64 KiB.
+Create exact tables from the spec. Add indexes on `saved_papers(user_id, created_at desc)`, `analysis_sessions(user_id, updated_at desc)`, and `analysis_messages(session_id, created_at)`. Add a required `client_request_id uuid` with a unique `(user_id, client_request_id)` constraint for save idempotency. Add a positive `sequence_no` with a unique `(session_id, sequence_no)` constraint for deterministic message order. Bound notes to 4,000 characters, tags to 20 entries of 64 characters, titles to 200 characters, and message JSON serialized size to 64 KiB.
 
-Profile creation uses a `security definer` trigger owned by `postgres`, sets a safe `search_path`, and copies only a bounded display name and validated preferred language. Revoke trigger-function execution from public roles.
+Put every workspace helper in the dedicated, non-exposed `workspace_private` schema, revoke default function execution, and grant only the exact schema/function privileges required by each wrapper. Profile creation uses a `security definer` trigger owned by `postgres`, sets an empty `search_path`, and copies only a bounded display name and validated preferred language. Revoke trigger-function execution from public roles.
 
-Every policy uses `to authenticated` plus `auth.uid() is not null`. Message access verifies both `analysis_messages.user_id` and ownership of the parent session.
+Every browser policy uses `to authenticated` plus `auth.uid() is not null`. Profiles remain owner-select/update and saved papers remain owner CRUD. Authenticated clients may only select/delete their own sessions and update the `title` column; they cannot insert sessions or update idea/report/corpus evidence. Messages are owner-select only, with access verifying both `analysis_messages.user_id` and ownership of the parent session. Authenticated clients receive no message insert/update/delete path.
 
-`get_my_saved_papers()` is a `security definer` function with a fixed `search_path` that derives the owner from `auth.uid()` and returns only saved-paper note/tags plus canonical title, authors, abstract, conference, division, keywords, and source URL. Grant it only to `authenticated`.
+`get_my_saved_papers()` is a public `security invoker` wrapper over a `workspace_private security definer` helper with an empty `search_path`. The helper derives the owner from `auth.uid()` and returns only saved-paper note/tags plus canonical title, authors, abstract, conference, division, keywords, and source URL. Grant this read RPC only to `authenticated`.
 
-`save_analysis_session(title, idea_text, report, language, corpus_snapshot)` derives `user_id`, inserts the session and its initial user/assistant messages atomically, and returns the new session ID. It enforces the same size checks as the tables and is granted only to `authenticated`.
+`save_analysis_session(target_user_id, client_request_id, title, idea_text, report, language, corpus_snapshot)` is a public `security invoker` wrapper over a `workspace_private security definer` helper. Grant both layers only to `service_role`; explicitly revoke `anon` and `authenticated`. The already-authenticated Edge boundary supplies the verified user ID and stable request UUID. The helper validates the target user and table constraints, inserts the session plus sequence 1 user/sequence 2 assistant messages atomically, and returns the session ID. Repeating `(target_user_id, client_request_id)` returns the existing session without duplicate messages.
 
 - [ ] **Step 4: Run migration tests and existing advisor-contract tests**
 
@@ -291,9 +299,9 @@ git commit -m "feat: add private saved paper library"
 - Modify: `public/index.html`
 
 **Interfaces:**
-- Endpoint: `POST /functions/v1/save-analysis` with bearer JWT and `{ title, ideaText, report, language, corpusSnapshot }`
+- Endpoint: `POST /functions/v1/save-analysis` with bearer JWT and `{ clientRequestId, title, ideaText, report, language, corpusSnapshot }`; `clientRequestId` is a UUID and no body user ID is accepted
 - Response: `{ data: { sessionId, createdAt } }`
-- Produces: `createConversationStore({ fetchImpl, endpoint, getAccessToken })`
+- Produces: `createConversationStore({ fetchImpl, endpoint, getAccessToken, randomUUID })`, which creates one request UUID per explicit save intent and reuses it for retries
 
 - [ ] **Step 1: Write failing privacy and contract tests**
 
@@ -307,9 +315,27 @@ test('analysis rendering never persists until save is invoked', async () => {
 test('save endpoint requires Auth and validates the canonical report', async () => {
   const edge = await text('supabase/functions/save-analysis/index.ts');
   assert.match(edge, /authorization/i);
+  assert.match(edge, /clientRequestId[\s\S]*uuid/i);
+  assert.match(edge, /getUser/i);
   assert.match(edge, /ideaText[\s\S]*5000/);
   assert.match(edge, /relatedPapers/);
+  assert.match(edge, /target_user_id[\s\S]*user\.id/i);
+  assert.doesNotMatch(edge, /body\.(?:userId|user_id)/i);
   assert.match(edge, /cache-control['"]?,\s*['"]no-store/i);
+});
+
+test('conversation save retries reuse one client request UUID', async () => {
+  const store = createConversationStore({
+    fetchImpl: retryingFetch,
+    endpoint: '/functions/v1/save-analysis',
+    getAccessToken: async () => 'user-jwt',
+    randomUUID: () => '11111111-1111-4111-8111-111111111111',
+  });
+  await store.save(reportInput);
+  assert.deepEqual(seenBodies.map((body) => body.clientRequestId), [
+    '11111111-1111-4111-8111-111111111111',
+    '11111111-1111-4111-8111-111111111111',
+  ]);
 });
 ```
 
@@ -321,15 +347,15 @@ Expected: FAIL with missing files.
 
 - [ ] **Step 3: Implement authenticated request verification**
 
-Validate the bearer token against Supabase Auth, derive `user.id` server-side, reject missing/expired sessions, cap the body at 256 KiB, and never log idea/report content. Use the authenticated user's JWT for database writes so RLS remains effective.
+Validate the bearer token with a user-scoped Supabase Auth client, derive canonical `user.id` server-side, reject missing/expired sessions, cap the body at 256 KiB, and never log idea/report content. Do not accept `userId` or `user_id` from the request body. Keep the server-only Supabase secret/service client separate and initialize it only for the validated persistence call.
 
 - [ ] **Step 4: Validate and persist the session atomically**
 
-Validate the same idea length and canonical report structure used by `analyze-idea`. Invoke `save_analysis_session(...)` with the authenticated user's JWT so the database transaction and RLS derive ownership. Return only the session ID and time.
+Validate the same idea length and canonical report structure used by `analyze-idea`, require a UUID `clientRequestId`, and allowlist the corpus snapshot. After bearer verification and canonical validation, invoke the service-role-only `save_analysis_session(...)` using the server-only Supabase secret/service client with `target_user_id = verified user.id` and `client_request_id = clientRequestId`. Never pass a body-derived user ID. Return only the session ID and time; a retry with the same verified user and request UUID returns the original idempotent result.
 
 - [ ] **Step 5: Implement explicit Save and conversation list**
 
-The Save button appears only after a successful report. It is never called by `renderReport`. On success it changes to **Saved**, then the Conversations view can list, rename, reopen, export, and delete the owner's sessions.
+The Save button appears only after a successful report. It is never called by `renderReport`. `createConversationStore` generates one UUID when an explicit save intent begins, retains it while that intent is pending or retryable, and reuses it for every retry; a new explicit save intent receives a new UUID. On success the button changes to **Saved**, then the Conversations view can list, rename, reopen, export, and delete the owner's sessions.
 
 - [ ] **Step 6: Test and commit**
 
