@@ -1,21 +1,24 @@
 # Readable workspace QA — 2026-08-23
 
-Scope: GitHub Pages output and rendered accessibility acceptance for commit
-`83ad9023766d60aa87fb291ecb913efa87b4add7`.
+Scope: GitHub Pages output and rendered accessibility acceptance across
+`83ad9023766d60aa87fb291ecb913efa87b4add7` through the final validated product
+fix commit `817fbd4330620f4f1b40ef90001e7446dfbf2893`.
 
 ## Automated gates
 
 | Command | Result | Observed evidence |
 | --- | --- | --- |
-| `npm test` | Environment-limited | 89/97 tests passed. The eight failures are all loopback-listener tests and report `listen EPERM: operation not permitted 127.0.0.1`. |
-| `npm run check` | PASS | Syntax check passed for 67 JavaScript modules (exit 0). |
+| `npm test` | Environment-limited | 91/99 tests passed. The eight failures are all loopback-listener tests and report `listen EPERM: operation not permitted 127.0.0.1`. |
+| `npm run check` | PASS | Syntax check passed for 69 JavaScript modules (exit 0). |
 | `npm run build` | PASS | Deployable application built in `dist/` (exit 0). |
 | `npm run pages:build` | PASS | Pages artifact `pages-dist` built with 9 files (exit 0). |
 
-The Pages artifact and secret scan are covered by the passing Pages-builder test
-in the product test suite; the suite's overall non-zero exit is solely the eight
-loopback-listener failures above. The focused contracts for reduced motion and
-normalized corpus fallback pass.
+`npm run pages:build` itself exited 0 after producing the Pages artifact and
+completing its secret scan. The separate passing Pages-builder test validates the
+builder contract; it is not the evidence for this artifact build. The suite's
+overall non-zero exit is solely the eight loopback-listener failures above.
+Focused behavior contracts cover reduced-motion scroll selection and
+render-safe, bilingual corpus fallback.
 
 ## Rendered QA
 
