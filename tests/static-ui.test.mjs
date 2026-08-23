@@ -82,7 +82,7 @@ test('idea radar landing page is a centered query-first research workbench', asy
   assert.match(html, /Start Testing/i);
   assert.match(html, /No global novelty claims/i);
 
-  assert.match(styles, /body\s*\{[\s\S]*font-size:\s*16px/i);
+  assert.match(styles, /--font-body:\s*1\.125rem/i);
   assert.match(styles, /\.query-hero\s*\{[\s\S]*max-width:\s*1080px/i);
   assert.match(styles, /textarea\s*\{[\s\S]*min-height:\s*240px[\s\S]*font-size:\s*1\.125rem/i);
 
@@ -115,6 +115,7 @@ test('idea radar landing page is a centered query-first research workbench', asy
 
 test('results render canonical ranked papers with full abstracts and readable citations', async () => {
   const script = await readFile(path.join(publicDir, 'app.js'), 'utf8');
+  const styles = await readFile(path.join(publicDir, 'styles.css'), 'utf8');
   const resultStyles = await readFile(path.join(publicDir, 'results-v2.css'), 'utf8');
 
   assert.match(script, /relatedPapers/);
@@ -127,5 +128,6 @@ test('results render canonical ranked papers with full abstracts and readable ci
   assert.doesNotMatch(script, /renderClosestWork\(report\.closestWork\)/);
   assert.doesNotMatch(script, /Grounded in:[^\n]*evidencePaperIds/);
   assert.match(resultStyles, /\.related-paper-list\s*\{[\s\S]*grid-template-columns:\s*1fr/i);
-  assert.match(resultStyles, /\.paper-abstract\s*\{[\s\S]*font-size:\s*1(?:\.0)?rem[\s\S]*line-height:\s*1\.65/i);
+  assert.match(styles, /--font-abstract:\s*1\.0625rem/i);
+  assert.match(resultStyles, /\.paper-abstract\s*\{[\s\S]*font-size:\s*var\(--font-abstract\)[\s\S]*line-height:\s*1\.65/i);
 });
