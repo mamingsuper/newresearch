@@ -36,140 +36,76 @@
     </header>
 
     <main id="main-content">
-      <section class="hero shell" aria-labelledby="hero-title">
-        <div class="hero-copy-column">
+      <section class="query-hero shell" aria-labelledby="hero-title">
+        <div class="query-intro">
           <p class="eyebrow">Live conference evidence / social science</p>
-          <div class="title-lockup">
-            <h1 class="hero-title" id="hero-title">
-              <span>Idea</span>
-              <span>Radar</span>
-            </h1>
-            <div class="hand-note" aria-hidden="true">from idea<br />to evidence ↘</div>
-          </div>
-          <p class="hero-copy">
-            Paste a research idea and compare it with the currently indexed conference corpus.
-            Find adjacent papers, inspect concrete overlap, and generate evidence-linked directions
-            for making the design more distinctive.
+          <h1 id="hero-title">Scan your research idea against the frontier</h1>
+          <p class="corpus-ledger" id="corpus-ledger">
+            APSA 2026 · 5,493 papers + ICA 2026 · 3,413 papers = 8,906 abstracts
           </p>
-
-          <div class="feature-pills" aria-label="Product capabilities">
-            <span class="feature-pill pill-blue">Semantic Search</span>
-            <span class="feature-pill pill-yellow">RAG</span>
-            <span class="feature-pill pill-black">Conference Papers</span>
-            <span class="feature-pill pill-red">Idea Check</span>
-            <span class="feature-pill pill-green">Novelty</span>
-            <span class="feature-pill pill-mint">QA</span>
-            <span class="feature-pill pill-lilac">Evidence</span>
-          </div>
-
-          <form class="idea-console" id="analysis-form" novalidate>
-            <label class="sr-only" for="idea-input">Research idea</label>
-            <textarea
-              id="idea-input"
-              name="idea"
-              minlength="20"
-              maxlength="5000"
-              rows="6"
-              required
-              placeholder="Describe your research idea…"
-            ></textarea>
-            <div class="console-actions">
-              <button class="text-button" id="example-button" type="button">Try an example</button>
-              <span id="character-count" aria-live="polite">0 / 5000</span>
-              <button class="primary-button" id="submit-button" type="submit">
-                Start Testing <span aria-hidden="true">→</span>
-              </button>
-            </div>
-            <p class="coverage-copy">
-              Corpus-scoped evidence only. The radar does not claim that an idea is globally novel.
-            </p>
-            <div id="form-error" class="error-message" role="alert" hidden></div>
-          </form>
-
-          <div class="example-row" aria-label="Example research prompts">
-            <span>Try:</span>
-            <button class="example-chip" type="button" data-example="AI transparency and political trust">AI transparency + trust</button>
-            <button class="example-chip" type="button" data-example="Remote work, social isolation, and productivity among early-career employees">Remote work + well-being</button>
-            <button class="example-chip" type="button" data-example="Generative AI political messages, media literacy, and youth political trust">GenAI + political trust</button>
-          </div>
+          <p class="hero-copy">
+            Compare your idea with the currently indexed conference corpus, inspect the closest
+            papers, and build evidence-linked directions for a stronger research design.
+          </p>
         </div>
 
-        <section class="radar-window" id="live-workbench" aria-label="Live research workbench preview">
-          <div class="window-topbar">
-            <div class="window-dots" aria-hidden="true">
-              <span class="dot-red"></span><span class="dot-yellow"></span><span class="dot-green"></span>
-            </div>
-            <strong>Research Idea Radar</strong>
-            <span class="window-status" id="workbench-state"><span class="live-dot"></span> Live</span>
+        <div class="feature-pills" aria-label="Product capabilities">
+          <span class="feature-pill pill-blue">Semantic Search</span>
+          <span class="feature-pill pill-yellow">Hybrid RAG</span>
+          <span class="feature-pill pill-black">8,906 Conference Papers</span>
+          <span class="feature-pill pill-green">Evidence Grounded</span>
+        </div>
+
+        <form class="idea-console" id="analysis-form" novalidate>
+          <label class="sr-only" for="idea-input">Research idea</label>
+          <textarea
+            id="idea-input"
+            name="idea"
+            minlength="20"
+            maxlength="5000"
+            rows="8"
+            required
+            placeholder="Describe the research question, population, mechanism, method, and uncertainty you want to investigate…"
+          ></textarea>
+          <div class="console-actions">
+            <button class="text-button" id="example-button" type="button">Try an example</button>
+            <span id="character-count" aria-live="polite">0 / 5000</span>
+            <button class="primary-button" id="submit-button" type="submit">
+              Start Testing <span aria-hidden="true">→</span>
+            </button>
           </div>
+          <p class="coverage-copy">
+            Corpus-scoped evidence only. The radar does not claim that an idea is globally novel.
+          </p>
+          <div id="form-error" class="error-message" role="alert" hidden></div>
+        </form>
 
-          <div class="window-body">
-            <div class="window-main">
-              <div class="idea-preview-card">
-                <div class="search-icon" aria-hidden="true">⌕</div>
-                <div>
-                  <span class="mini-label">YOUR IDEA</span>
-                  <strong>Describe a study to scan the frontier</strong>
-                  <p>Topic · mechanism · population · method</p>
-                </div>
-              </div>
+        <div class="example-row" aria-label="Example research prompts">
+          <span>Try:</span>
+          <button class="example-chip" type="button" data-example="AI transparency and political trust">AI transparency + trust</button>
+          <button class="example-chip" type="button" data-example="Remote work, social isolation, and productivity among early-career employees">Remote work + well-being</button>
+          <button class="example-chip" type="button" data-example="Generative AI political messages, media literacy, and youth political trust">GenAI + political trust</button>
+        </div>
 
-              <div class="panel-heading">
-                <span>Research pipeline</span>
-                <span class="panel-microcopy">real results after testing</span>
-              </div>
-
-              <div class="pipeline-list">
-                <article class="pipeline-card">
-                  <span class="step-number step-blue">01</span>
-                  <div>
-                    <h2>Parse the idea</h2>
-                    <p>Resolve the study into researchable dimensions before retrieval.</p>
-                  </div>
-                  <span class="stage-pill stage-ready">profile</span>
-                </article>
-                <article class="pipeline-card">
-                  <span class="step-number step-green">02</span>
-                  <div>
-                    <h2>Find related papers</h2>
-                    <p>Combine semantic vectors with full-text evidence from the live corpus.</p>
-                  </div>
-                  <span class="stage-pill stage-search">hybrid</span>
-                </article>
-                <article class="pipeline-card">
-                  <span class="step-number step-yellow">03</span>
-                  <div>
-                    <h2>Map innovation paths</h2>
-                    <p>Ground differentiation ideas in retrieved conference-paper evidence.</p>
-                  </div>
-                  <span class="stage-pill stage-grounded">grounded</span>
-                </article>
-              </div>
+        <section class="search-progress" id="search-progress" aria-live="polite" aria-label="Research scan progress" hidden>
+          <div class="progress-topline">
+            <div>
+              <p class="card-kicker">Live corpus scan</p>
+              <h2>Searching APSA 2026 + ICA 2026</h2>
             </div>
-
-            <aside class="window-aside" aria-label="Live corpus facts">
-              <p class="aside-title">At a glance</p>
-              <div class="metric-card metric-red">
-                <span>papers</span>
-                <strong id="corpus-paper-count">—</strong>
-                <small>indexed records</small>
-              </div>
-              <div class="metric-card metric-blue">
-                <span>retrieval</span>
-                <strong>Hybrid</strong>
-                <small>vector + FTS</small>
-              </div>
-              <div class="metric-card metric-green">
-                <span>vectors</span>
-                <strong>512d</strong>
-                <small id="corpus-vector-status">checking readiness</small>
-              </div>
-              <div class="corpus-note" id="corpus-summary">Loading live corpus metadata…</div>
-            </aside>
+            <strong id="progress-percent">0%</strong>
           </div>
-
-          <div class="window-tabs" aria-hidden="true">
-            <span class="active">Search</span><span>Evidence</span><span>QA</span><span>Notes</span>
+          <div class="progress-track" aria-hidden="true">
+            <span id="progress-bar"></span>
+          </div>
+          <div class="progress-details">
+            <p id="progress-stage">Preparing scan…</p>
+            <div class="database-chips" aria-label="Databases included in this scan">
+              <span>APSA 2026 · 5,493</span>
+              <span>ICA 2026 · 3,413</span>
+              <span>8,906 abstracts</span>
+              <span>Hybrid vector + full-text</span>
+            </div>
           </div>
         </section>
       </section>
@@ -181,8 +117,8 @@
         </div>
         <div class="method-grid">
           <article><span>01</span><h3>Describe</h3><p>State the question, population, mechanism, method, or uncertainty you care about.</p></article>
-          <article><span>02</span><h3>Compare</h3><p>Search the indexed conference corpus and inspect paper-level supporting evidence.</p></article>
-          <article><span>03</span><h3>Differentiate</h3><p>Use overlap and adjacent work to identify credible directions for a stronger design.</p></article>
+          <article><span>02</span><h3>Compare</h3><p>Search APSA 2026 and ICA 2026 with semantic vectors plus full-text retrieval.</p></article>
+          <article><span>03</span><h3>Differentiate</h3><p>Use paper-level evidence to identify credible directions for a stronger design.</p></article>
         </div>
       </section>
 
@@ -192,7 +128,7 @@
             <p class="eyebrow">Evidence-grounded report</p>
             <h2 id="report-title">Your research frontier</h2>
           </div>
-          <p class="report-subtitle">Every paper card links back to its source. Weak evidence stays weak.</p>
+          <p class="report-subtitle">Every paper links back to its source. Weak evidence stays weak.</p>
         </div>
         <div id="report-root" aria-live="polite"></div>
       </section>
