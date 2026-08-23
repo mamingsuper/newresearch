@@ -8,13 +8,29 @@ const characterCount = document.querySelector('#character-count');
 const reportSection = document.querySelector('#report-section');
 const reportRoot = document.querySelector('#report-root');
 const modeBadge = document.querySelector('#mode-badge');
-const corpusPaperCount = document.querySelector('#corpus-paper-count');
-const corpusVectorStatus = document.querySelector('#corpus-vector-status');
-const corpusSummary = document.querySelector('#corpus-summary');
-const workbenchState = document.querySelector('#workbench-state');
+const corpusLedger = document.querySelector('#corpus-ledger');
+const searchProgress = document.querySelector('#search-progress');
+const progressBar = document.querySelector('#progress-bar');
+const progressPercent = document.querySelector('#progress-percent');
+const progressStage = document.querySelector('#progress-stage');
 
 const EXAMPLE_IDEA =
   'I want to test whether AI literacy moderates the effect of generative-AI political messages on political trust among young adults, using a preregistered online experiment.';
+
+const PROGRESS_STAGES = [
+  { target: 5, label: 'Understanding the research question' },
+  { target: 20, label: 'Reading corpus scope: APSA 2026 + ICA 2026' },
+  { target: 35, label: 'Generating the query embedding' },
+  { target: 55, label: 'Running Hybrid vector + full-text retrieval' },
+  { target: 75, label: 'Ranking the most relevant papers' },
+  { target: 90, label: 'Generating evidence-grounded analysis' },
+  { target: 94, label: 'Finalizing grounded citations' },
+];
+
+let progressTimer = null;
+let progressValue = 0;
+let progressStageIndex = 0;
+let progressHoldTicks = 0;
 
 const configuredApiBase = window.__IDEA_RADAR_CONFIG__?.apiBaseUrl?.trim();
 const edgeApiBase = window.location.hostname === 'mamingsuper.github.io' && configuredApiBase
@@ -181,8 +197,59 @@ function renderReport(report) {
   reportRoot.append(finalGrid);
 
   reportSection.hidden = false;
-  workbenchState.textContent = 'Report ready';
   reportSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function setProgress(value, label) {
+  const bounded = Math.max(0, Math.min(100, Math.round(value)));
+  progressValue = bounded;
+  progressPercent.textContent = `${bounded}%`;
+  progressBar.style.width = `${bounded}%`;
+  if (label) progressStage.textContent = label;
+}
+
+function clearProgressTimer() {
+  if (progressTimer !== null) {
+    window.clearInterval(progressTimer);
+    progressTimer = null;
+  }
+}
+
+function startProgress() {
+  clearProgressTimer();
+  searchProgress.hidden = false;
+  progressStageIndex = 0;
+  progressHoldTicks = 0;
+  setProgress(1, PROGRESS_STAGES[0].label);
+
+  progressTimer = window.setInterval(() => {
+    const stage = PROGRESS_STAGES[progressStageIndex];
+    if (progressValue < stage.target) {
+      const distance = stage.target - progressValue;
+      const increment = Math.max(1, Math.ceil(distance / 4));
+      setProgress(Math.min(stage.target, progressValue + increment), stage.label);
+      return;
+    }
+
+    if (progressStageIndex < PROGRESS_STAGES.length - 1) {
+      progressHoldTicks += 1;
+      if (progressHoldTicks >= 2) {
+        progressStageIndex += 1;
+        progressHoldTicks = 0;
+        setProgress(progressValue, PROGRESS_STAGES[progressStageIndex].label);
+      }
+    }
+  }, 300);
+}
+
+function completeProgress() {
+  clearProgressTimer();
+  setProgress(100, 'Report ready');
+}
+
+function failProgress() {
+  clearProgressTimer();
+  if (!searchProgress.hidden) progressStage.textContent = 'Scan stopped before completion';
 }
 
 function setBusy(busy) {
@@ -191,13 +258,11 @@ function setBusy(busy) {
   exampleButton.disabled = busy;
   for (const chip of exampleChips) chip.disabled = busy;
   submitButton.textContent = busy ? 'Scanning corpus…' : 'Start Testing →';
-  if (busy) workbenchState.textContent = 'Analyzing…';
 }
 
 function showError(message) {
   formError.textContent = message;
   formError.hidden = false;
-  workbenchState.textContent = 'Needs input';
 }
 
 function clearError() {
@@ -232,6 +297,7 @@ form.addEventListener('submit', async (event) => {
   }
 
   setBusy(true);
+  startProgress();
   try {
     const response = await fetch(apiEndpoint('analyze-idea', '/api/analyze'), {
       method: 'POST',
@@ -240,8 +306,10 @@ form.addEventListener('submit', async (event) => {
     });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error?.message ?? 'The analysis could not be completed.');
+    completeProgress();
     renderReport(payload.data ?? payload);
   } catch (error) {
+    failProgress();
     showError(error instanceof Error ? error.message : 'The analysis could not be completed.');
   } finally {
     setBusy(false);
@@ -252,6 +320,7 @@ function normalizeCorpus(payload) {
   const candidate = payload?.data?.stats ?? payload?.data ?? payload?.stats ?? payload ?? {};
   return {
     paperCount: candidate.paperCount ?? candidate.paper_count,
+    papersWithAbstract: candidate.papersWithAbstract ?? candidate.papers_with_abstract,
     embeddedPaperCount: candidate.embeddedPaperCount ?? candidate.embedded_count,
     pendingEmbeddingCount: candidate.pendingEmbeddingCount ?? candidate.pending_embedding_count,
     ready: candidate.ready,
@@ -261,27 +330,20 @@ function normalizeCorpus(payload) {
 
 function renderCorpusStatus(corpus, mode) {
   const count = Number(corpus.paperCount);
-  corpusPaperCount.textContent = Number.isInteger(count) ? formatCount(count) : '—';
-
-  const embedded = Number(corpus.embeddedPaperCount);
-  const pending = Number(corpus.pendingEmbeddingCount);
-  if (corpus.ready === true || (Number.isInteger(count) && count > 0 && embedded === count)) {
-    corpusVectorStatus.textContent = Number.isInteger(embedded) ? `${formatCount(embedded)} ready` : 'ready';
-  } else if (Number.isInteger(pending) && pending > 0) {
-    corpusVectorStatus.textContent = `${formatCount(pending)} pending`;
-  } else {
-    corpusVectorStatus.textContent = 'status unavailable';
-  }
-
-  const labels = corpus.conferences.map((conference) => {
+  const abstracts = Number(corpus.papersWithAbstract);
+  const conferenceParts = corpus.conferences.map((conference) => {
     if (typeof conference === 'string') return conference;
     const name = conference.name ?? conference.slug?.toUpperCase();
     const year = conference.year;
-    return [name, year].filter(Boolean).join(' ');
+    const papers = Number(conference.papers);
+    const label = [name, year].filter(Boolean).join(' ');
+    return Number.isInteger(papers) ? `${label} · ${formatCount(papers)} papers` : label;
   }).filter(Boolean);
-  corpusSummary.textContent = labels.length
-    ? `${labels.join(' · ')}. Corpus-scoped retrieval; no global novelty claim.`
-    : 'Corpus-scoped retrieval; no global novelty claim.';
+
+  if (conferenceParts.length) {
+    const abstractCount = Number.isInteger(abstracts) ? abstracts : count;
+    corpusLedger.textContent = `${conferenceParts.join(' + ')}${Number.isInteger(abstractCount) ? ` = ${formatCount(abstractCount)} abstracts` : ''}`;
+  }
 
   const modeLabel = mode === 'live' ? 'Live corpus' : mode === 'mock' ? 'Demo corpus' : 'Corpus';
   modeBadge.replaceChildren(
