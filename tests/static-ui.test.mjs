@@ -108,9 +108,9 @@ test('idea radar landing page is a centered query-first research workbench', asy
   assert.match(script, /if\s*\(!response\.ok\)[\s\S]*throw[\s\S]*completeProgress\(\)/);
 
   assert.match(styles, /--paper:\s*#f6f0e4/i);
-  assert.match(styles, /--blue:\s*#2f5bff/i);
+  assert.match(styles, /--blue:\s*#2447d8/i);
   assert.match(styles, /--yellow:\s*#f6bd2f/i);
-  assert.match(styles, /--green:\s*#079c6a/i);
+  assert.match(styles, /--green:\s*#006b4a/i);
   assert.match(styles, /--red:\s*#ff5a3d/i);
   assert.match(styles, /linear-gradient\([^)]*rgba\([^)]*\)[^)]*1px/i);
 

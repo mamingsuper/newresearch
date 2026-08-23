@@ -56,7 +56,7 @@ a { color: inherit; }
 .workspace-sidebar button { cursor: pointer; }
 .account-entry { margin-top: auto; border: 1px solid var(--ink) !important; }
 .mode-badge { display: inline-flex; align-items: center; gap: 8px; padding: 9px 13px; border: 1px solid var(--ink); border-radius: 999px; background: var(--surface-strong); font-size: var(--font-control); font-weight: 800; }
-.live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(7,156,106,.12); }
+.live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(0,107,74,.12); }
 .workspace-content main { min-width: 0; }
 .mobile-workspace-header { display: none; }
 .workspace-status-region { min-height: 0; }
