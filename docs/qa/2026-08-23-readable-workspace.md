@@ -21,7 +21,7 @@ normalized corpus fallback pass.
 
 The local sandbox cannot serve a page, but the controller completed the following
 true browser checks on a standard local HTTP surface. The observations are
-recorded here with that provenance. The two pending rows are not PASS results.
+recorded here with that provenance. The two blocked rows are not PASS results.
 
 | Check | Viewport / setting | Result | Evidence / follow-up |
 | --- | --- | --- | --- |
@@ -30,14 +30,14 @@ recorded here with that provenance. The two pending rows are not PASS results.
 | Mobile layout and type | 390 × 844 | PASS | Body 17px; input 16px; mobile header flex; menu target 44.39px; hero 368px; no horizontal overflow. |
 | Drawer keyboard and focus return | 390 × 844 | PASS | Closed x=-336, open x=0; Escape returned `data-open=false` and `aria-expanded=false`, then restored focus to the menu button. |
 | Chinese labels and clipping | 390 × 844, `lang=zh` | PASS | Title and controls switched to Chinese; visible content did not clip and had no horizontal overflow. The closed off-canvas sidebar was intentionally outside the viewport. |
+| Corpus fallback and locale switch | Clean artifact tab, corpus-status unavailable, `lang=zh` | PASS | No console errors or warnings; `html lang=zh`; ledger displayed APSA/ICA and the Chinese 8,906-paper copy; mode displayed `语料库`; no horizontal overflow. |
 | Equivalent 200% reflow | 720 × 450 CSS viewport | PASS (equivalent viewport) | Used as the 1440px page's 200% equivalent: body 17px, mobile header, hero 688px, menu target 44.39px, no horizontal overflow. Native browser zoom was not verified. |
 | Anonymous analysis failure | localhost | PASS (failure behavior) | Returned a closed-dictionary error and generated no report. |
 | Twenty returned papers render once each | localhost | blocked | No successful anonymous report was available; the static contract only proves one append and does not substitute for rendered QA. |
 | Abstract overflow | rendered result cards | blocked | Requires a successful rendered result set. |
-| Reduced motion | `prefers-reduced-motion: reduce` | pending re-verification | The source contract now disables smooth scroll plus sidebar, progress bar, primary button, and abstract-preview motion; controller browser re-check remains required. |
+| Reduced motion | Pages artifact with `prefers-reduced-motion: reduce` | PASS | `matchMedia` matched; `html` scroll behavior was `auto`; workspace nav, progress bar, and primary-button transition durations were 0s; results-v2 loaded the no-motion abstract-preview rule. |
 
 ## Required follow-up
 
-Re-run reduced motion after the product fix and obtain a successful returned
-paper set before replacing the remaining `pending` and `blocked` rows with
-directly observed results.
+Obtain a successful returned paper set before replacing the remaining two
+`blocked` rows with directly observed results.
