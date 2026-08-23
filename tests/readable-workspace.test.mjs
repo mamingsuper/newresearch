@@ -205,7 +205,8 @@ test('paper result actions are explicit and do not pretend to persist', async ()
   assert.match(script, /data-export-format/);
   assert.match(script, /requiresAccount/);
   assert.match(script, /requiresAccount\('save-paper', paper\.paperId\)/);
-  assert.match(script, /showUnavailableAction\('action\.exportUnavailable'\)/);
+  assert.match(script, /exportPapers\(\[paper\], 'bibtex'\)/);
+  assert.match(script, /downloadExport/);
   assert.match(i18n, /'auth\.intent\.save-paper':/);
   assert.match(i18n, /'auth\.intent\.export':/);
   assert.doesNotMatch(script, /localStorage\.setItem\([^)]*idea/i);

@@ -7,6 +7,7 @@ import { createAuthActionRouter } from './auth-actions.js';
 import { initPublicAnalysisForm } from './analysis-form.js';
 import { createOptimisticSavedPaperController, createSavedPaperStore, renderSavedPaperLibrary } from './saved-papers.js';
 import { createConversationStore, renderConversationList } from './conversations.js';
+import { downloadExport, exportConversation, exportPapers } from './exports.js';
 
 const LOCALE_STORAGE_KEY = 'idea-radar-locale';
 const readLocale = () => {
@@ -71,9 +72,6 @@ let savedPaperStore;
 let savedPaperItems = [];
 let conversationStore;
 let conversationItems = [];
-const unavailableActionIntents = Object.freeze({
-  'action.exportUnavailable': 'export',
-});
 
 const configuredApiBase = window.__IDEA_RADAR_CONFIG__?.apiBaseUrl?.trim();
 const edgeApiBase = window.location.hostname === 'mamingsuper.github.io' && configuredApiBase
@@ -166,11 +164,37 @@ async function restoreAuthenticatedIntent(intent) {
   target?.focus();
 }
 
-function showUnavailableAction(messageKey) {
-  const intent = unavailableActionIntents[messageKey];
-  if (!intent) return;
-  uiState.setAuthIntent(intent);
-  renderUiState();
+function announceExport(artifact, scope = 'global') {
+  downloadExport(artifact);
+  const message = t('export.completed', { count: artifact.recordCount ?? 1 });
+  authIntentStatus.textContent = message;
+  authIntentStatus.hidden = false;
+  if (scope === 'saved') {
+    savedPapersStatus.textContent = message;
+    savedPapersStatus.hidden = false;
+  }
+  if (scope === 'conversation') {
+    conversationsStatus.textContent = message;
+    conversationsStatus.hidden = false;
+  }
+}
+
+function exportSavedPaper(item, trigger = document.activeElement) {
+  if (authState.status !== 'authenticated') {
+    requestAccountAction('export', `paper:${item.paperId}`, trigger);
+    return false;
+  }
+  announceExport(exportPapers([item], 'bibtex'), 'saved');
+  return true;
+}
+
+function exportSavedConversation(session, trigger = document.activeElement) {
+  if (authState.status !== 'authenticated') {
+    requestAccountAction('export', `conversation:${session.id}`, trigger);
+    return false;
+  }
+  announceExport(exportConversation(session), 'conversation');
+  return true;
 }
 
 function announceSaved(key, params = {}) {
@@ -212,7 +236,7 @@ function renderSavedLibrary() {
       renderSavedLibrary();
       announceSaved('saved.removed');
     },
-    onExport() { showUnavailableAction('action.exportUnavailable'); },
+    onExport(item) { exportSavedPaper(item); },
     async onUpdateNote(paperId, values) {
       try {
         await savedPaperStore.updateNote(paperId, values);
@@ -288,7 +312,7 @@ function renderConversations() {
         announceConversation(conversationErrorKey(error?.code));
       }
     },
-    onExport() { showUnavailableAction('action.exportUnavailable'); },
+    onExport(session) { exportSavedConversation(session); },
     async onDelete(sessionId) {
       if (!window.confirm(t('conversation.deleteConfirm'))) return;
       try {
@@ -358,6 +382,19 @@ async function executeAuthenticatedIntent(intent = {}) {
   if (intent.action === 'conversations') {
     await loadConversations();
     return true;
+  }
+  if (intent.action === 'export') {
+    const [kind, entityId] = String(intent.entityId ?? '').split(':');
+    if (kind === 'paper') {
+      if (!savedPaperItems.length) savedPaperItems = await savedPaperStore.list();
+      const item = savedPaperItems.find((candidate) => candidate.paperId === entityId);
+      return item ? exportSavedPaper(item) : false;
+    }
+    if (kind === 'conversation') {
+      if (!conversationItems.length) conversationItems = await conversationStore.list();
+      const session = conversationItems.find((candidate) => candidate.id === entityId);
+      return session ? exportSavedConversation(session) : false;
+    }
   }
   return false;
 }
@@ -548,7 +585,7 @@ function renderRelatedPapers(items) {
         'aria-label': t('report.exportCitationFor', { title }),
       },
     });
-    exportButton.addEventListener('click', () => showUnavailableAction('action.exportUnavailable'));
+    exportButton.addEventListener('click', () => announceExport(exportPapers([paper], 'bibtex')));
     actions.append(saveButton, exportButton);
     body.append(actions);
 
