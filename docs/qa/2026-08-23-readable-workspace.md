@@ -2,23 +2,27 @@
 
 Scope: GitHub Pages output and rendered accessibility acceptance across
 `83ad9023766d60aa87fb291ecb913efa87b4add7` through the final validated product
-fix commit `817fbd4330620f4f1b40ef90001e7446dfbf2893`.
+fix commit `5d7ff6208a59946f6fa48bd306bf0f61f7ff1f45`.
 
 ## Automated gates
 
 | Command | Result | Observed evidence |
 | --- | --- | --- |
-| `npm test` | Environment-limited | 91/99 tests passed. The eight failures are all loopback-listener tests and report `listen EPERM: operation not permitted 127.0.0.1`. |
+| `npm test` | Environment-limited | 99/107 tests passed. The eight failures are all loopback-listener tests and report `listen EPERM: operation not permitted 127.0.0.1`. |
 | `npm run check` | PASS | Syntax check passed for 69 JavaScript modules (exit 0). |
 | `npm run build` | PASS | Deployable application built in `dist/` (exit 0). |
-| `npm run pages:build` | PASS | Pages artifact `pages-dist` built with 10 files (exit 0). |
+| `npm run pages:build` | PASS | Pages artifact `pages-dist` built with 9 files (exit 0); the executable builder test independently counted the same 9 files. |
 
 `npm run pages:build` itself exited 0 after producing the Pages artifact and
 completing its secret scan. The separate passing Pages-builder test validates the
 builder contract; it is not the evidence for this artifact build. The suite's
 overall non-zero exit is solely the eight loopback-listener failures above.
 Focused behavior contracts cover reduced-motion scroll selection and
-render-safe, bilingual corpus fallback.
+render-safe, bilingual corpus fallback. They also verify mobile drawer
+`inert`/focus/media-query behavior, globally visible localized account feedback,
+focus-before-scroll report presentation without locale-rerender focus theft, and
+WCAG AA contrast for every canonical normal-text color combination (minimum
+tested ratio 5.60:1).
 
 ## Rendered QA
 
@@ -47,6 +51,14 @@ acceptance.
 | Abstract and card overflow | 1440 × 900 deterministic contract fixture | PASS (non-production retrieval evidence) | Abstract font 18px; abstract overflow 0; card overflow 0; page had no horizontal overflow. |
 | Mobile result cards and abstract overflow | 390 × 844 Chinese deterministic contract fixture | PASS (non-production retrieval evidence) | `lang=zh`; 20 cards and unique IDs; abstract font 17px; abstract/card/page overflow 0; no visible result offenders; action min-height 44.390625px. |
 | Reduced motion | Pages artifact with `prefers-reduced-motion: reduce` | PASS | `matchMedia` matched; `html` scroll behavior was `auto`; workspace nav, progress bar, and primary-button transition durations were 0s; results-v2 loaded the no-motion abstract-preview rule. |
+
+The previously rendered drawer observation above remains scoped to geometry and
+Escape focus return. The added executable behavior contract verifies that the
+closed mobile drawer is inert, opening focuses its first navigation control,
+closing restores menu focus, and moving to the desktop media query removes
+`inert`. Report focus order, globally visible feedback placement, and contrast
+are likewise recorded as automated acceptance rather than new rendered-browser
+observations.
 
 ## Acceptance conclusion
 
