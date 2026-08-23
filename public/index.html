@@ -174,6 +174,37 @@
       </div>
     </div>
 
+    <dialog class="auth-dialog" id="auth-dialog" aria-labelledby="auth-dialog-title">
+      <div class="auth-dialog-card">
+        <div>
+          <p class="eyebrow" data-i18n="auth.eyebrow">Private research workspace</p>
+          <h2 id="auth-dialog-title" data-i18n="auth.title">Sign in to save your work</h2>
+          <p class="auth-dialog-copy" data-i18n="auth.copy">Continue with a secure magic link or an enabled provider. Anonymous idea testing stays available.</p>
+        </div>
+
+        <div id="auth-anonymous-controls">
+          <form id="auth-form" novalidate>
+            <label for="auth-email" data-i18n="auth.email">Email address</label>
+            <input id="auth-email" name="email" type="email" autocomplete="email" maxlength="254" required />
+            <button class="primary-button" id="auth-email-submit" type="submit" data-i18n="auth.emailSubmit">Email me a sign-in link</button>
+          </form>
+          <p class="auth-divider" data-i18n="auth.or">or</p>
+          <div class="auth-provider-actions">
+            <button id="auth-google" type="button" data-i18n="auth.google">Continue with Google</button>
+            <button id="auth-github" type="button" data-i18n="auth.github">Continue with GitHub</button>
+          </div>
+        </div>
+
+        <div id="auth-authenticated-controls" hidden>
+          <p data-i18n="auth.authenticated">You are signed in. Your private workspace is available on this device.</p>
+          <button id="auth-sign-out" type="button" data-i18n="auth.signOut">Sign out</button>
+        </div>
+
+        <p id="auth-status" class="auth-dialog-status" role="status" aria-live="polite"></p>
+        <button class="auth-cancel" id="auth-cancel" type="button" data-i18n="auth.cancel">Cancel</button>
+      </div>
+    </dialog>
+
     <script src="./config.js"></script>
     <script src="./vendor/supabase-2.112.3.js"></script>
     <script type="module" src="./app.js"></script>

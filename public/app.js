@@ -1,6 +1,8 @@
 import { createTranslator } from './i18n.js';
 import { createWorkspaceUiState, initWorkspaceNavigation } from './workspace.js';
 import { createCorpusStatusModel, normalizeCorpus, presentRenderedReport } from './workspace-behaviors.js';
+import { createAuthClient } from './auth-client.js';
+import { initAuthUi } from './auth-ui.js';
 
 const LOCALE_STORAGE_KEY = 'idea-radar-locale';
 const readLocale = () => {
@@ -27,6 +29,8 @@ const progressPercent = document.querySelector('#progress-percent');
 const progressStage = document.querySelector('#progress-stage');
 const localeSelector = document.querySelector('#locale-selector');
 const authIntentStatus = document.querySelector('#auth-intent-status');
+const accountEntry = document.querySelector('.account-entry');
+const authDialog = document.querySelector('#auth-dialog');
 
 const PROGRESS_STAGES = [
   { target: 5, key: 'progress.stage.understanding' },
@@ -44,6 +48,8 @@ let progressHoldTicks = 0;
 let latestCorpus = null;
 let latestCorpusMode;
 let latestReport = null;
+let authState = { status: 'disabled', user: null };
+let authUi;
 const unavailableActionIntents = Object.freeze({
   'action.exportUnavailable': 'export',
 });
@@ -71,6 +77,8 @@ function setLocale(locale) {
   try { window.localStorage.setItem(LOCALE_STORAGE_KEY, translator.locale); } catch { /* Preference is optional. */ }
   applyStaticTranslations();
   localeSelector.value = translator.locale;
+  accountEntry.textContent = t(authState.status === 'authenticated' ? 'nav.account' : 'nav.signIn');
+  authUi?.refresh();
   updateCharacterCount();
   renderUiState();
   if (latestCorpus) renderCorpusStatus(latestCorpus, latestCorpusMode);
@@ -106,10 +114,36 @@ function authorNames(authors) {
     .filter(Boolean);
 }
 
-function requiresAccount(action, paperId) {
-  void paperId;
-  uiState.setAuthIntent(action);
-  renderUiState();
+function requiresAccount(action, paperId, trigger = document.activeElement) {
+  requestAccountAction(action, paperId, trigger);
+}
+
+function requestAccountAction(action, entityId = '', trigger = document.activeElement) {
+  if (authState.status === 'authenticated') {
+    window.dispatchEvent(new CustomEvent('idea-radar:auth-intent', {
+      detail: { action, entityId, returnHash: window.location.hash || '#new-analysis' },
+    }));
+    return;
+  }
+  if (!authUi?.open({ action, entityId, returnHash: window.location.hash || '#new-analysis', trigger })) {
+    uiState.setAuthIntent(action);
+    renderUiState();
+  }
+}
+
+function restoreAuthenticatedIntent(intent) {
+  window.dispatchEvent(new CustomEvent('idea-radar:auth-intent', { detail: intent }));
+  if (intent.returnHash) window.location.hash = intent.returnHash;
+  let target = null;
+  if (intent.action === 'save-paper' && intent.entityId) {
+    const card = [...document.querySelectorAll('[data-paper-id]')]
+      .find((candidate) => candidate.dataset.paperId === intent.entityId);
+    target = card?.querySelector('[data-paper-action="save"]') ?? null;
+  } else {
+    target = [...document.querySelectorAll('[data-auth-intent]')]
+      .find((candidate) => candidate.dataset.authIntent === intent.action) ?? null;
+  }
+  target?.focus();
 }
 
 function showUnavailableAction(messageKey) {
@@ -292,7 +326,10 @@ function renderRelatedPapers(items) {
         'aria-label': t('report.savePaperFor', { title }),
       },
     });
-    saveButton.addEventListener('click', () => requiresAccount('save-paper', paper.paperId));
+    saveButton.addEventListener('click', (event) => {
+      event.currentTarget.focus();
+      requiresAccount('save-paper', paper.paperId);
+    });
     const exportButton = element('button', {
       text: t('report.exportCitation'),
       attributes: {
@@ -596,12 +633,35 @@ async function loadCorpusStatus() {
 applyStaticTranslations();
 localeSelector.value = translator.locale;
 localeSelector.addEventListener('change', () => setLocale(localeSelector.value));
+const publicConfig = window.__IDEA_RADAR_CONFIG__ ?? {};
+let authStorage = null;
+try { authStorage = window.localStorage; } catch { /* Auth remains disabled without browser storage. */ }
+const authClient = createAuthClient({
+  sdk: window.supabase,
+  url: publicConfig.supabaseUrl ?? '',
+  publishableKey: publicConfig.supabasePublishableKey ?? '',
+  storage: authStorage,
+});
+authUi = initAuthUi({
+  authClient,
+  dialog: authDialog,
+  redirectTo: new URL('./', window.location.href).href,
+  t: (key) => t(key),
+  onSessionChange(state) {
+    authState = state;
+    accountEntry.dataset.authState = state.status;
+    accountEntry.textContent = t(state.status === 'authenticated' ? 'nav.account' : 'nav.signIn');
+  },
+  consumeIntent(intent) {
+    restoreAuthenticatedIntent(intent);
+  },
+});
 initWorkspaceNavigation({
   sidebar: document.querySelector('#workspace-nav'),
   menuButton: document.querySelector('#workspace-menu-button'),
-  authIntentHandler(intent) {
-    uiState.setAuthIntent(intent);
-    renderUiState();
+  authIntentHandler(intent, event) {
+    const trigger = event.target.closest('[data-auth-intent]');
+    queueMicrotask(() => requestAccountAction(intent, '', trigger));
   },
 });
 renderUiState();
