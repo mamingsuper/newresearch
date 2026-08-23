@@ -125,6 +125,16 @@ test('global typography floor rejects unapproved small-text selectors', async ()
   assert.deepEqual(violations, [], `unapproved sub-16px declarations: ${violations.join(' | ')}`);
 });
 
+test('reduced motion disables workspace and result transitions', async () => {
+  const workspaceCss = await text('public/styles.css');
+  const resultCss = await text('public/results-v2.css');
+  assert.match(workspaceCss, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*html\s*\{[\s\S]*scroll-behavior:\s*auto/i);
+  assert.match(workspaceCss, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\.workspace-sidebar\s*\{[\s\S]*(?:transition|animation):\s*none/i);
+  assert.match(workspaceCss, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*#progress-bar\s*\{[\s\S]*(?:transition|animation):\s*none/i);
+  assert.match(workspaceCss, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\.primary-button\s*\{[\s\S]*(?:transition|animation):\s*none/i);
+  assert.match(resultCss, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\.paper-abstract-preview\s*\{[\s\S]*(?:transition|animation):\s*none/i);
+});
+
 test('each related paper is appended exactly once', async () => {
   const script = await text('public/app.js');
   const matches = script.match(/list\.append\(article\)/g) ?? [];

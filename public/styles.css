@@ -190,3 +190,10 @@ table th, table td { font-size: var(--font-control); }
   .mobile-workspace-header { display: flex; align-items: center; justify-content: space-between; min-height: 4rem; padding: 0 1rem; border-bottom: 1px solid var(--line); background: var(--surface-strong); }
   .mobile-workspace-header button { border: 1px solid var(--ink); padding: .5rem .75rem; background: transparent; font-size: var(--font-control); }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .workspace-sidebar { transition: none; animation: none; }
+  #progress-bar { transition: none; animation: none; }
+  .primary-button { transition: none; animation: none; }
+}

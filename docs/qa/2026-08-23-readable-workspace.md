@@ -7,38 +7,37 @@ Scope: GitHub Pages output and rendered accessibility acceptance for commit
 
 | Command | Result | Observed evidence |
 | --- | --- | --- |
-| `npm test` | Environment-limited | 87/95 tests passed. The eight failures are all loopback-listener tests and report `listen EPERM: operation not permitted 127.0.0.1`. |
+| `npm test` | Environment-limited | 89/97 tests passed. The eight failures are all loopback-listener tests and report `listen EPERM: operation not permitted 127.0.0.1`. |
 | `npm run check` | PASS | Syntax check passed for 67 JavaScript modules (exit 0). |
 | `npm run build` | PASS | Deployable application built in `dist/` (exit 0). |
 | `npm run pages:build` | PASS | Pages artifact `pages-dist` built with 9 files (exit 0). |
 
 The Pages artifact and secret scan are covered by the passing Pages-builder test
 in the product test suite; the suite's overall non-zero exit is solely the eight
-loopback-listener failures above.
+loopback-listener failures above. The focused contracts for reduced motion and
+normalized corpus fallback pass.
 
 ## Rendered QA
 
-`npm run dev` exited 1 before a local page became available. Its visible output
-was `Server failed: Error`; the server only logs the error name. In the same
-sandbox, the listener test failures explicitly report `EPERM`, so rendered QA is
-blocked by the local-listening environment. No browser or visual result is being
-claimed from static inspection.
+The local sandbox cannot serve a page, but the controller completed the following
+true browser checks on a standard local HTTP surface. The observations are
+recorded here with that provenance. The two pending rows are not PASS results.
 
 | Check | Viewport / setting | Result | Evidence / follow-up |
 | --- | --- | --- | --- |
-| Dominant analysis column | 1440px | blocked | No locally rendered page was available. |
-| Dominant analysis column | 900px | blocked | No locally rendered page was available. |
-| Mobile layout | 390px | blocked | No locally rendered page was available. |
-| Typography lower bound | 1440px, 900px, 390px | blocked | Requires computed rendered styles. |
-| Drawer keyboard, Escape, and focus return | 390px | blocked | Requires interactive rendered UI. |
-| Twenty returned papers render once each | 1440px | blocked | Requires a rendered result set. |
-| Abstract overflow | 1440px, 900px, 390px | blocked | Requires rendered content. |
-| Reduced motion | reduced-motion preference | blocked | Requires rendered UI and preference emulation. |
-| English and Chinese labels | 1440px, 900px, 390px | blocked | Requires visual inspection in both locales. |
-| Zoom behavior | 200% zoom | blocked | Requires a rendered page. |
+| Dominant analysis column and desktop structure | 1440 × 900 | PASS | Body 18px; input 16px; sidebar sticky; mobile header hidden; hero 980px; no horizontal overflow. |
+| Desktop breakpoint and type | 900 × 900 | PASS | Desktop breakpoint remained active; body 18px; h1 64.8px without overflow; hero 652px; no horizontal overflow. |
+| Mobile layout and type | 390 × 844 | PASS | Body 17px; input 16px; mobile header flex; menu target 44.39px; hero 368px; no horizontal overflow. |
+| Drawer keyboard and focus return | 390 × 844 | PASS | Closed x=-336, open x=0; Escape returned `data-open=false` and `aria-expanded=false`, then restored focus to the menu button. |
+| Chinese labels and clipping | 390 × 844, `lang=zh` | PASS | Title and controls switched to Chinese; visible content did not clip and had no horizontal overflow. The closed off-canvas sidebar was intentionally outside the viewport. |
+| Equivalent 200% reflow | 720 × 450 CSS viewport | PASS (equivalent viewport) | Used as the 1440px page's 200% equivalent: body 17px, mobile header, hero 688px, menu target 44.39px, no horizontal overflow. Native browser zoom was not verified. |
+| Anonymous analysis failure | localhost | PASS (failure behavior) | Returned a closed-dictionary error and generated no report. |
+| Twenty returned papers render once each | localhost | blocked | No successful anonymous report was available; the static contract only proves one append and does not substitute for rendered QA. |
+| Abstract overflow | rendered result cards | blocked | Requires a successful rendered result set. |
+| Reduced motion | `prefers-reduced-motion: reduce` | pending re-verification | The source contract now disables smooth scroll plus sidebar, progress bar, primary button, and abstract-preview motion; controller browser re-check remains required. |
 
 ## Required follow-up
 
-Run the same viewport, interaction, locale, reduced-motion, and 200% zoom checks
-on a surface that permits a local HTTP listener, then replace only the relevant
-`blocked` rows with directly observed results.
+Re-run reduced motion after the product fix and obtain a successful returned
+paper set before replacing the remaining `pending` and `blocked` rows with
+directly observed results.

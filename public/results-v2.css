@@ -350,3 +350,7 @@
     max-height: 58vh;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .paper-abstract-preview { transition: none; animation: none; }
+}

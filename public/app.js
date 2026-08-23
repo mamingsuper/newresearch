@@ -595,7 +595,7 @@ function renderCorpusStatus(corpus, mode) {
 }
 
 async function loadCorpusStatus() {
-  let corpus = {};
+  let corpus = normalizeCorpus({});
   let mode = edgeApiBase ? 'live' : undefined;
 
   try {
