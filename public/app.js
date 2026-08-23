@@ -16,6 +16,15 @@ const workbenchState = document.querySelector('#workbench-state');
 const EXAMPLE_IDEA =
   'I want to test whether AI literacy moderates the effect of generative-AI political messages on political trust among young adults, using a preregistered online experiment.';
 
+const configuredApiBase = window.__IDEA_RADAR_CONFIG__?.apiBaseUrl?.trim();
+const edgeApiBase = window.location.hostname === 'mamingsuper.github.io' && configuredApiBase
+  ? configuredApiBase.replace(/\/$/, '')
+  : '';
+
+function apiEndpoint(edgePath, localPath) {
+  return edgeApiBase ? `${edgeApiBase}/${edgePath}` : localPath;
+}
+
 function clearElement(element) {
   while (element.firstChild) element.removeChild(element.firstChild);
 }
@@ -224,7 +233,7 @@ form.addEventListener('submit', async (event) => {
 
   setBusy(true);
   try {
-    const response = await fetch('/api/analyze', {
+    const response = await fetch(apiEndpoint('analyze-idea', '/api/analyze'), {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ idea }),
@@ -283,26 +292,28 @@ function renderCorpusStatus(corpus, mode) {
 
 async function loadCorpusStatus() {
   let corpus = {};
-  let mode;
+  let mode = edgeApiBase ? 'live' : undefined;
 
   try {
-    const corpusResponse = await fetch('/api/corpus');
+    const corpusResponse = await fetch(apiEndpoint('corpus-status', '/api/corpus'));
     if (corpusResponse.ok) corpus = normalizeCorpus(await corpusResponse.json());
   } catch {
-    // Older deployments may not expose /api/corpus yet; health remains a safe fallback.
+    // Keep the page usable if corpus status is temporarily unavailable.
   }
 
-  try {
-    const healthResponse = await fetch('/api/health');
-    if (healthResponse.ok) {
-      const healthPayload = await healthResponse.json();
-      mode = healthPayload.data?.mode ?? healthPayload.mode;
-      if (!Number.isInteger(Number(corpus.paperCount))) {
-        corpus = normalizeCorpus(healthPayload.data?.corpus ?? healthPayload.corpus ?? healthPayload);
+  if (!edgeApiBase) {
+    try {
+      const healthResponse = await fetch('/api/health');
+      if (healthResponse.ok) {
+        const healthPayload = await healthResponse.json();
+        mode = healthPayload.data?.mode ?? healthPayload.mode;
+        if (!Number.isInteger(Number(corpus.paperCount))) {
+          corpus = normalizeCorpus(healthPayload.data?.corpus ?? healthPayload.corpus ?? healthPayload);
+        }
       }
+    } catch {
+      mode = undefined;
     }
-  } catch {
-    mode = undefined;
   }
 
   renderCorpusStatus(corpus, mode);
