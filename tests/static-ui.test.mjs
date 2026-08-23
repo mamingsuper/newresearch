@@ -57,3 +57,28 @@ test('server serves the workbench and blocks path traversal', async () => {
     await once(server, 'close');
   }
 });
+
+test('idea radar landing page exposes the editorial live-testing layout', async () => {
+  const html = await readFile(path.join(publicDir, 'index.html'), 'utf8');
+  const styles = await readFile(path.join(publicDir, 'styles.css'), 'utf8');
+  const script = await readFile(path.join(publicDir, 'app.js'), 'utf8');
+
+  assert.match(html, /class="hero-title"[^>]*>[\s\S]*Idea[\s\S]*Radar/i);
+  assert.match(html, /id="live-workbench"/i);
+  assert.match(html, /id="corpus-paper-count"/i);
+  assert.match(html, /Semantic Search/i);
+  assert.match(html, /Conference Papers/i);
+  assert.match(html, /Start Testing/i);
+  assert.match(html, /No global novelty claims/i);
+
+  assert.match(styles, /--paper:\s*#f6f0e4/i);
+  assert.match(styles, /--blue:\s*#2f5bff/i);
+  assert.match(styles, /--yellow:\s*#f6bd2f/i);
+  assert.match(styles, /--green:\s*#079c6a/i);
+  assert.match(styles, /--red:\s*#ff5a3d/i);
+  assert.match(styles, /linear-gradient\([^)]*rgba\([^)]*\)[^)]*1px/i);
+
+  assert.match(script, /fetch\(['"]\/api\/corpus['"]\)/);
+  assert.match(script, /fetch\(['"]\/api\/health['"]\)/);
+  assert.match(script, /fetch\(['"]\/api\/analyze['"],/);
+});
