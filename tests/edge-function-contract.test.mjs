@@ -30,12 +30,15 @@ test('analyze-idea Edge Function enforces the public beta evidence contract', as
   assert.match(source, /store\s*:\s*false/);
   assert.match(source, /json_schema/);
   assert.match(source, /strict\s*:\s*true/);
-  assert.match(source, /allowedPaperIds|allowedPaperIds/i);
+  assert.match(source, /allowedPaperIds/i);
   assert.match(source, /canonical|groundClosestWork/i);
   assert.match(source, /Cache-Control|cache-control/i);
   assert.match(source, /no-store/i);
   assert.match(source, /OPTIONS/);
   assert.match(source, /Access-Control-Allow-Origin/i);
+  assert.match(source, /analyze_idea_failure/);
+  assert.match(source, /stage/);
+  assert.match(source, /safeErrorCode|safe_error_code/i);
   assert.doesNotMatch(source, /console\.(log|error|warn)\([^\n]*(idea|body|clientNetwork)/i);
   assert.doesNotMatch(source, /providerBody|responseBody/);
 });
