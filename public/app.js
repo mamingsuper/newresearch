@@ -8,6 +8,7 @@ import { initPublicAnalysisForm } from './analysis-form.js';
 import { createOptimisticSavedPaperController, createSavedPaperStore, renderSavedPaperLibrary } from './saved-papers.js';
 import { createConversationStore, renderConversationList } from './conversations.js';
 import { downloadExport, exportConversation, exportPapers } from './exports.js';
+import { createPrivateCacheGuard } from './private-cache-guard.js';
 
 const LOCALE_STORAGE_KEY = 'idea-radar-locale';
 const readLocale = () => {
@@ -72,6 +73,7 @@ let savedPaperStore;
 let savedPaperItems = [];
 let conversationStore;
 let conversationItems = [];
+const privateCacheGuard = createPrivateCacheGuard();
 
 const configuredApiBase = window.__IDEA_RADAR_CONFIG__?.apiBaseUrl?.trim();
 const edgeApiBase = window.location.hostname === 'mamingsuper.github.io' && configuredApiBase
@@ -180,7 +182,7 @@ function announceExport(artifact, scope = 'global') {
 }
 
 function exportSavedPaper(item, trigger = document.activeElement) {
-  if (authState.status !== 'authenticated') {
+  if (authState.status !== 'authenticated' || !privateCacheGuard.owns('saved', authState.user.id)) {
     requestAccountAction('export', `paper:${item.paperId}`, trigger);
     return false;
   }
@@ -189,7 +191,7 @@ function exportSavedPaper(item, trigger = document.activeElement) {
 }
 
 function exportSavedConversation(session, trigger = document.activeElement) {
-  if (authState.status !== 'authenticated') {
+  if (authState.status !== 'authenticated' || !privateCacheGuard.owns('conversations', authState.user.id)) {
     requestAccountAction('export', `conversation:${session.id}`, trigger);
     return false;
   }
@@ -251,16 +253,20 @@ function renderSavedLibrary() {
 }
 
 async function loadSavedLibrary() {
+  const ownerId = authState.user?.id ?? null;
   savedPapersSection.hidden = false;
   window.location.hash = '#saved-papers';
   announceSaved('saved.loading');
   try {
-    savedPaperItems = await savedPaperStore.list();
+    const items = await savedPaperStore.list();
+    if (!privateCacheGuard.mark('saved', ownerId)) return;
+    savedPaperItems = items;
     savedPaperController.replace(savedPaperItems);
     renderSavedLibrary();
     announceSaved('saved.loaded', { count: savedPaperItems.length });
     savedPapersFilter.focus();
   } catch (error) {
+    if (!privateCacheGuard.isActive(ownerId)) return;
     savedPaperItems = [];
     savedPaperController.replace([]);
     renderSavedLibrary();
@@ -288,8 +294,10 @@ function renderConversations() {
     sessions: conversationItems,
     t: (key) => t(key),
     async onReopen(sessionId) {
+      const ownerId = authState.user?.id ?? null;
       try {
         const session = await conversationStore.reopen(sessionId);
+        if (!privateCacheGuard.mark('report', ownerId)) return;
         latestIdeaText = session.ideaText;
         latestReportSaved = true;
         ideaInput.value = session.ideaText;
@@ -297,6 +305,7 @@ function renderConversations() {
         renderReport(session.report, { saved: true });
         announceConversation('conversation.reopened');
       } catch (error) {
+        if (!privateCacheGuard.isActive(ownerId)) return;
         announceConversation(conversationErrorKey(error?.code));
       }
     },
@@ -328,15 +337,19 @@ function renderConversations() {
 }
 
 async function loadConversations() {
+  const ownerId = authState.user?.id ?? null;
   conversationsSection.hidden = false;
   window.location.hash = '#conversations';
   announceConversation('conversation.loading');
   try {
-    conversationItems = await conversationStore.list();
+    const items = await conversationStore.list();
+    if (!privateCacheGuard.mark('conversations', ownerId)) return;
+    conversationItems = items;
     renderConversations();
     announceConversation('conversation.loaded');
     conversationsSection.focus?.();
   } catch (error) {
+    if (!privateCacheGuard.isActive(ownerId)) return;
     conversationItems = [];
     renderConversations();
     announceConversation(conversationErrorKey(error?.code));
@@ -386,12 +399,22 @@ async function executeAuthenticatedIntent(intent = {}) {
   if (intent.action === 'export') {
     const [kind, entityId] = String(intent.entityId ?? '').split(':');
     if (kind === 'paper') {
-      if (!savedPaperItems.length) savedPaperItems = await savedPaperStore.list();
+      if (!privateCacheGuard.owns('saved', authState.user.id)) {
+        const ownerId = authState.user.id;
+        const items = await savedPaperStore.list();
+        if (!privateCacheGuard.mark('saved', ownerId)) return false;
+        savedPaperItems = items;
+      }
       const item = savedPaperItems.find((candidate) => candidate.paperId === entityId);
       return item ? exportSavedPaper(item) : false;
     }
     if (kind === 'conversation') {
-      if (!conversationItems.length) conversationItems = await conversationStore.list();
+      if (!privateCacheGuard.owns('conversations', authState.user.id)) {
+        const ownerId = authState.user.id;
+        const items = await conversationStore.list();
+        if (!privateCacheGuard.mark('conversations', ownerId)) return false;
+        conversationItems = items;
+      }
       const session = conversationItems.find((candidate) => candidate.id === entityId);
       return session ? exportSavedConversation(session) : false;
     }
@@ -893,15 +916,30 @@ authUi = initAuthUi({
   redirectTo: new URL('./', window.location.href).href,
   t: (key) => t(key),
   onSessionChange(state) {
+    const cacheTransition = privateCacheGuard.transition(state.user?.id ?? null);
     authState = state;
     accountEntry.dataset.authState = state.status;
     accountEntry.textContent = t(state.status === 'authenticated' ? 'nav.account' : 'nav.signIn');
-    if (state.status !== 'authenticated') {
+    if (cacheTransition.userChanged) {
       savedPaperItems = [];
       savedPaperController.replace([]);
       savedPapersSection.hidden = true;
+      clearElement(savedPapersRoot);
       conversationItems = [];
       conversationsSection.hidden = true;
+      clearElement(conversationsRoot);
+      if (cacheTransition.clearPrivateReport) {
+        latestReport = null;
+        latestIdeaText = '';
+        latestReportSaved = false;
+        ideaInput.value = '';
+        updateCharacterCount();
+        clearElement(reportRoot);
+        reportSection.hidden = true;
+        saveAnalysisButton.hidden = true;
+        saveAnalysisButton.disabled = false;
+        saveAnalysisStatus.textContent = '';
+      }
     }
   },
   consumeIntent(intent) {
@@ -941,6 +979,7 @@ initPublicAnalysisForm({
   )),
   onSuccess(report) {
     completeProgress();
+    privateCacheGuard.clear('report');
     latestIdeaText = ideaInput.value.trim();
     latestReportSaved = false;
     renderReport(report, { saved: false });
