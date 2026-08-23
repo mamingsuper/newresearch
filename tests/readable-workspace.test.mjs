@@ -4,18 +4,75 @@ import { readFile } from 'node:fs/promises';
 
 const root = new URL('../', import.meta.url);
 const text = (path) => readFile(new URL(path, root), 'utf8');
+const allowedSmallTextSelectors = [
+  /^\.paper-citation-line(?:\s+(?:strong|span))?$/i,
+  /^\.paper-detail-chips(?:\s+span)?$/i,
+  /^\.ranking-note$/i,
+  /^\.eyebrow$/i,
+  /^\.card-kicker$/i,
+  /^\.inference-label$/i,
+  /^\.abstract-label$/i,
+  /^\.paper-abstract-preview-label$/i,
+  /^\.paper-rank-number$/i,
+  /^#character-count$/i,
+  /^\.database-chips\s+span$/i,
+];
+const allowedSmallTextSelector = (selector) => allowedSmallTextSelectors.some((pattern) => pattern.test(selector.trim()));
+const isSmallFontSize = (declaration) => {
+  const value = declaration.trim().replace(/\s*!\s*important\s*$/i, '');
+  if (/^var\(\s*--font-(?:meta|label)\s*\)$/i.test(value)) return true;
+
+  const match = value.match(/^(\d+(?:\.\d+)?|\.\d+)\s*(px|rem)$/i);
+  if (!match) return false;
+
+  const pixels = Number(match[1]) * (match[2].toLowerCase() === 'rem' ? 16 : 1);
+  return pixels < 16;
+};
 const findSmallTextViolations = (css) => {
-  const allowedSmallText = /(?:\.paper-citation-line|\.paper-detail-chips|\.ranking-note|\.eyebrow|\.card-kicker|\.inference-label|\.abstract-label|\.paper-abstract-preview-label|\.paper-rank-number|#character-count|\.database-chips\s+span)/i;
   const violations = [];
-  for (const match of css.matchAll(/([^{}]+)\{([^{}]*font-size:\s*(?:(?:0?\.[0-9]+)rem|[0-9]+px|var\(--font-(?:meta|label)\))[^{}]*)\}/gi)) {
-    const selector = match[1].replace(/\/\*[\s\S]*?\*\//g, '').trim();
-    const declaration = match[2].match(/font-size:\s*([^;]+)/i)?.[1]?.trim() ?? '';
-    const isSmallExplicit = /(?:rem|px)$/i.test(declaration) && ((declaration.endsWith('rem') && Number.parseFloat(declaration) < 1) || (declaration.endsWith('px') && Number.parseFloat(declaration) < 16));
-    const isSmallToken = /var\(--font-(?:meta|label)\)/i.test(declaration);
-    if ((isSmallExplicit || isSmallToken) && !allowedSmallText.test(selector)) violations.push(`${selector} => ${declaration}`);
+  for (const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const selectors = match[1]
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .split(',')
+      .map((selector) => selector.trim())
+      .filter(Boolean);
+    for (const declaration of match[2].matchAll(/\bfont-size\s*:\s*([^;}]+)/gi)) {
+      const value = declaration[1].trim();
+      if (!isSmallFontSize(value)) continue;
+      for (const selector of selectors) {
+        if (!allowedSmallTextSelector(selector)) violations.push(`${selector} => ${value}`);
+      }
+    }
   }
   return violations;
 };
+
+test('typography floor audit permits allowed metadata and label selectors', () => {
+  const violations = findSmallTextViolations(`
+    .paper-citation-line { font-size: var(--font-meta); }
+    .paper-detail-chips { font-size: var(--font-label) !important; }
+  `);
+
+  assert.deepEqual(violations, []);
+});
+
+test('typography floor audit rejects important, decimal, and mixed-selector small text', () => {
+  const violations = findSmallTextViolations(`
+    .unapproved-important { font-size: 15px !important; }
+    .unapproved-decimal-pixel { font-size: 15.5px; }
+    .unapproved-decimal-rem { font-size: .96875rem; }
+    .unapproved-important-token { font-size: var(--font-label) !important; }
+    .paper-citation-line, .unapproved-companion { font-size: var(--font-meta); }
+  `);
+
+  assert.deepEqual(violations, [
+    '.unapproved-important => 15px !important',
+    '.unapproved-decimal-pixel => 15.5px',
+    '.unapproved-decimal-rem => .96875rem',
+    '.unapproved-important-token => var(--font-label) !important',
+    '.unapproved-companion => var(--font-meta)',
+  ]);
+});
 
 test('workspace shell exposes focused navigation, responsive controls, and account intent destinations', async () => {
   const html = await text('public/index.html');
