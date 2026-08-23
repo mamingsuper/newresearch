@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SupabasePaperRetriever, SupabaseRpcClient } from '../src/retrieval/supabase-retriever.mjs';
 
-test('embeds the query at 512 dimensions and calls the hybrid search RPC', async () => {
+test('embeds the query at 512 dimensions with query semantics and calls the hybrid search RPC', async () => {
   const calls = [];
   const embedding = Array.from({ length: 512 }, (_, index) => index / 512);
   const retriever = new SupabasePaperRetriever({
@@ -47,7 +47,7 @@ test('embeds the query at 512 dimensions and calls the hybrid search RPC', async
   assert.deepEqual(calls[0], {
     type: 'embed',
     text: 'How does AI affect political trust among young adults?',
-    options: { dimensions: 512 },
+    options: { dimensions: 512, task: 'query' },
   });
   assert.equal(calls[1].payload.queryText, 'How does AI affect political trust among young adults?');
   assert.equal(calls[1].payload.queryEmbedding.length, 512);
