@@ -14,30 +14,31 @@
   <body>
     <a class="skip-link" href="#idea-input">Skip to idea testing</a>
 
-    <header class="site-header">
-      <div class="shell header-inner">
-        <a class="brand" href="./" aria-label="Idea Radar home">
-          <span class="brand-mark" aria-hidden="true">
-            <span class="radar-ring"></span>
-            <span class="radar-dot radar-dot-blue"></span>
-            <span class="radar-dot radar-dot-red"></span>
-          </span>
-          <span>Idea Radar</span>
-        </a>
-        <nav class="site-nav" aria-label="Primary navigation">
-          <a href="#how-it-works">How it works</a>
-          <a href="#report-section">Evidence</a>
-          <a href="#privacy">Privacy</a>
+    <div class="workspace-shell" id="workspace-shell">
+      <aside class="workspace-sidebar" id="workspace-nav" aria-label="Workspace navigation">
+        <a class="brand" href="#new-analysis">Idea Radar</a>
+        <nav>
+          <a href="#new-analysis" aria-current="page">New analysis</a>
+          <a href="#conference-library">Conference library</a>
+          <button type="button" data-auth-intent="saved-papers">Saved papers</button>
+          <button type="button" data-auth-intent="conversations">Conversations</button>
+          <a href="#submit-program">Submit a program</a>
         </nav>
+        <button class="account-entry" type="button" data-auth-intent="sign-in">Sign in</button>
         <div class="mode-badge" id="mode-badge" aria-live="polite">
           <span class="live-dot" aria-hidden="true"></span>
           Checking corpus…
         </div>
-      </div>
-    </header>
+      </aside>
 
-    <main id="main-content">
-      <section class="query-hero shell" aria-labelledby="hero-title">
+      <div class="workspace-content">
+        <header class="mobile-workspace-header">
+          <a class="brand" href="#new-analysis">Idea Radar</a>
+          <button id="workspace-menu-button" type="button" aria-controls="workspace-nav" aria-expanded="false">Menu</button>
+        </header>
+
+        <main id="workspace-main">
+      <section class="query-hero shell" id="new-analysis" aria-labelledby="hero-title">
         <div class="query-intro">
           <p class="eyebrow">Live conference evidence / social science</p>
           <h1 id="hero-title">Scan your research idea against the frontier</h1>
@@ -123,6 +124,12 @@
         </div>
       </section>
 
+      <section class="workspace-preview shell" id="conference-library" aria-labelledby="conference-library-title">
+        <p class="eyebrow">Coming next</p>
+        <h2 id="conference-library-title">Conference library</h2>
+        <p>Browse and compare the indexed conference evidence here as the next workspace stage arrives.</p>
+      </section>
+
       <section class="report-shell shell" id="report-section" aria-labelledby="report-title" hidden>
         <div class="report-heading">
           <div>
@@ -141,14 +148,22 @@
         </div>
         <p><strong>Scope:</strong> No global novelty claims. Conclusions are limited to the currently indexed corpus.</p>
       </section>
-    </main>
 
-    <footer class="site-footer">
-      <div class="shell footer-inner">
-        <span>Idea Radar / Research Frontier Radar</span>
-        <span>Evidence first. No global novelty claims.</span>
+      <section class="workspace-preview shell" id="submit-program" aria-labelledby="submit-program-title">
+        <p class="eyebrow">Coming next</p>
+        <h2 id="submit-program-title">Submit a program</h2>
+        <p>Program submission will be available in a later stage. This preview does not collect or save submissions.</p>
+      </section>
+        </main>
+
+        <footer class="site-footer">
+          <div class="shell footer-inner">
+            <span>Idea Radar / Research Frontier Radar</span>
+            <span>Evidence first. No global novelty claims.</span>
+          </div>
+        </footer>
       </div>
-    </footer>
+    </div>
 
     <script src="./config.js"></script>
     <script type="module" src="./app.js"></script>
