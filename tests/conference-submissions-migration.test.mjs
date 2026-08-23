@@ -84,6 +84,24 @@ test('ordinary approval cannot write production papers', async () => {
   assert.doesNotMatch(transitionBody, /insert into public\.papers|update public\.papers/i);
 });
 
+test('service-only submission RPC creates the submitted row and initial event atomically', async () => {
+  const sql = await migrationSql();
+  const helper = sql.match(
+    /create or replace function workspace_private\.create_program_submission_impl[\s\S]*?\$\$;/i,
+  )?.[0] ?? '';
+
+  assert.match(helper, /target_user_id uuid[\s\S]*from auth\.users/i);
+  assert.match(helper, /insert into public\.program_submissions/i);
+  assert.match(helper, /status[\s\S]*'submitted'/i);
+  assert.match(helper, /from storage\.objects[\s\S]*owner_id = target_user_id::text[\s\S]*for share/i);
+  assert.match(helper, /pg_advisory_xact_lock[\s\S]*hashtextextended/i);
+  assert.match(helper, /insert into workspace_private\.submission_events/i);
+  assert.match(helper, /from_status[\s\S]*to_status[\s\S]*values[\s\S]*target_user_id,\s*null,\s*'submitted'/i);
+  assert.match(sql, /create or replace function public\.create_program_submission[\s\S]*security invoker/i);
+  assert.match(sql, /grant execute on function public\.create_program_submission[^;]*to service_role/i);
+  assert.doesNotMatch(sql, /grant execute on function public\.create_program_submission[^;]*to authenticated/i);
+});
+
 test('final confirmation is admin-only, preview-gated, atomic, and idempotent', async () => {
   const sql = await migrationSql();
   const confirmation = sql.match(

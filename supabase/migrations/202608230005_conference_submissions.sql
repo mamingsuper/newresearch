@@ -323,6 +323,196 @@ using (
   )
 );
 
+create or replace function workspace_private.create_program_submission_impl(
+  target_submission_id uuid,
+  target_user_id uuid,
+  target_conference_slug text,
+  target_conference_name text,
+  target_conference_acronym text,
+  target_conference_year integer,
+  target_discipline text,
+  target_official_conference_url text,
+  target_notes text,
+  target_submission_kind text,
+  target_program_url text,
+  target_storage_path text,
+  target_file_name text,
+  target_file_size_bytes bigint,
+  target_mime_type text,
+  target_content_sha256 text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  created_row public.program_submissions;
+begin
+  if not exists (select 1 from auth.users where id = target_user_id) then
+    raise sqlstate '23503' using message = 'submission owner does not exist';
+  end if;
+  if target_submission_kind = 'file'
+    and target_storage_path is distinct from (
+      target_user_id::text || '/' || target_submission_id::text || '/' || target_file_name
+    ) then
+    raise sqlstate '22023' using message = 'storage path does not match submission owner';
+  end if;
+  if target_submission_kind = 'file' then
+    perform 1
+    from storage.objects
+    where bucket_id = 'program-submissions'
+      and name = target_storage_path
+      and owner_id = target_user_id::text
+      and (metadata ->> 'size')::bigint = target_file_size_bytes
+      and lower(split_part(metadata ->> 'mimetype', ';', 1)) = target_mime_type
+    for share;
+    if not found then
+      raise sqlstate '22023' using message = 'stored file metadata does not match submission';
+    end if;
+  end if;
+
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(coalesce(target_program_url, target_content_sha256), 0)
+  );
+  if exists (
+    select 1
+    from public.program_submissions
+    where (target_program_url is not null and program_url = target_program_url)
+      or (target_content_sha256 is not null and content_sha256 = target_content_sha256)
+  ) then
+    raise sqlstate '23505' using message = 'duplicate program submission';
+  end if;
+
+  insert into public.program_submissions (
+    id,
+    user_id,
+    conference_slug,
+    conference_name,
+    conference_acronym,
+    conference_year,
+    discipline,
+    official_conference_url,
+    notes,
+    submission_kind,
+    program_url,
+    storage_path,
+    rights_attested,
+    rights_attested_at,
+    file_name,
+    file_size_bytes,
+    mime_type,
+    content_sha256,
+    status,
+    submitted_at
+  ) values (
+    target_submission_id,
+    target_user_id,
+    target_conference_slug,
+    target_conference_name,
+    target_conference_acronym,
+    target_conference_year,
+    target_discipline,
+    target_official_conference_url,
+    target_notes,
+    target_submission_kind,
+    target_program_url,
+    target_storage_path,
+    true,
+    now(),
+    target_file_name,
+    target_file_size_bytes,
+    target_mime_type,
+    target_content_sha256,
+    'submitted',
+    now()
+  )
+  returning * into created_row;
+
+  insert into workspace_private.submission_events (
+    submission_id,
+    actor_user_id,
+    from_status,
+    to_status,
+    event_type,
+    detail
+  ) values (
+    created_row.id,
+    target_user_id,
+    null,
+    'submitted',
+    'submission_created',
+    jsonb_build_object('submissionKind', target_submission_kind)
+  );
+
+  return jsonb_build_object(
+    'id', created_row.id,
+    'status', created_row.status,
+    'submittedAt', created_row.submitted_at
+  );
+end;
+$$;
+
+alter function workspace_private.create_program_submission_impl(
+  uuid, uuid, text, text, text, integer, text, text, text, text, text, text, text, bigint, text, text
+) owner to postgres;
+revoke all on function workspace_private.create_program_submission_impl(
+  uuid, uuid, text, text, text, integer, text, text, text, text, text, text, text, bigint, text, text
+) from public, anon, authenticated;
+grant execute on function workspace_private.create_program_submission_impl(
+  uuid, uuid, text, text, text, integer, text, text, text, text, text, text, text, bigint, text, text
+) to service_role;
+
+create or replace function public.create_program_submission(
+  target_submission_id uuid,
+  target_user_id uuid,
+  target_conference_slug text,
+  target_conference_name text,
+  target_conference_acronym text,
+  target_conference_year integer,
+  target_discipline text,
+  target_official_conference_url text,
+  target_notes text,
+  target_submission_kind text,
+  target_program_url text,
+  target_storage_path text,
+  target_file_name text,
+  target_file_size_bytes bigint,
+  target_mime_type text,
+  target_content_sha256 text
+)
+returns jsonb
+language sql
+security invoker
+set search_path = ''
+as $$
+  select workspace_private.create_program_submission_impl(
+    target_submission_id,
+    target_user_id,
+    target_conference_slug,
+    target_conference_name,
+    target_conference_acronym,
+    target_conference_year,
+    target_discipline,
+    target_official_conference_url,
+    target_notes,
+    target_submission_kind,
+    target_program_url,
+    target_storage_path,
+    target_file_name,
+    target_file_size_bytes,
+    target_mime_type,
+    target_content_sha256
+  );
+$$;
+
+revoke all on function public.create_program_submission(
+  uuid, uuid, text, text, text, integer, text, text, text, text, text, text, text, bigint, text, text
+) from public, anon, authenticated;
+grant execute on function public.create_program_submission(
+  uuid, uuid, text, text, text, integer, text, text, text, text, text, text, text, bigint, text, text
+) to service_role;
+
 create or replace function workspace_private.transition_program_submission_impl(
   target_submission_id uuid,
   target_expected_status text,
