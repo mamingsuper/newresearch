@@ -1,6 +1,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SupabasePaperRetriever, SupabaseRpcClient } from '../src/retrieval/supabase-retriever.mjs';
+import { OpenAIEmbeddingsClient, SupabasePaperRetriever, SupabaseRpcClient } from '../src/retrieval/supabase-retriever.mjs';
+
+test('OpenAI query embeddings use the production model and 512 dimensions', async () => {
+  let captured;
+  const client = new OpenAIEmbeddingsClient({
+    apiKey: 'test-openai-key',
+    fetchImpl: async (url, options) => {
+      captured = { url, body: JSON.parse(options.body) };
+      return new Response(JSON.stringify({ data: [{ embedding: Array.from({ length: 512 }, () => 0.1) }] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    },
+  });
+
+  const embedding = await client.embed('A sufficiently detailed research query.', { dimensions: 512 });
+
+  assert.equal(captured.url, 'https://api.openai.com/v1/embeddings');
+  assert.equal(captured.body.model, 'text-embedding-3-small');
+  assert.equal(captured.body.dimensions, 512);
+  assert.equal(captured.body.input, 'A sufficiently detailed research query.');
+  assert.equal(embedding.length, 512);
+});
 
 test('embeds the query at 512 dimensions with query semantics and calls the hybrid search RPC', async () => {
   const calls = [];
