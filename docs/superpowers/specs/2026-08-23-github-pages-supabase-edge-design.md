@@ -43,7 +43,10 @@ Supabase Edge Functions
   |      FTS + pgvector + RRF
   |
   +--> OpenAI /v1/responses
-         structured JSON report, store: false
+         model: gpt-5-mini
+         structured JSON report
+         max_output_tokens: 1800
+         store: false
 
 Supabase Postgres
   - papers
@@ -55,7 +58,7 @@ GitHub Pages serves only public static assets. All privileged database and OpenA
 
 ## Production embedding contract
 
-The live corpus and live query path will use one explicit production contract:
+The live corpus and live query path use one explicit production contract:
 
 ```text
 provider: OpenAI
@@ -69,18 +72,18 @@ The repository must be corrected so future production ingestion does not enqueue
 Implementation will:
 
 1. restore the production corpus loader/job default model to `text-embedding-3-small`;
-2. restore the production Node query embedding path to OpenAI, or make OpenAI the explicit production provider;
+2. restore the production Node query embedding path to OpenAI as the production provider;
 3. add a corrective migration that retargets only unfinished production jobs to the OpenAI contract;
 4. leave existing completed OpenAI vectors untouched;
-5. keep Nomic only as an explicitly experimental/offline path if retaining it is useful, never as an implicit writer into the production vector column.
+5. retain Nomic only as an explicitly experimental/offline path if it remains in the repository, never as an implicit writer into the production vector column.
 
-A production request must fail closed if the configured query model or dimension does not match the expected production contract.
+A production request fails closed if the query model or dimension differs from this contract.
 
 ## Edge Function: `analyze-idea`
 
 ### Public API
 
-`POST https://<project-ref>.supabase.co/functions/v1/analyze-idea`
+`POST https://euptkcjwunpnwiqejtru.supabase.co/functions/v1/analyze-idea`
 
 Request:
 
@@ -105,7 +108,7 @@ Success response:
 }
 ```
 
-The response shape must remain compatible with the current browser renderer.
+The response shape remains compatible with the current browser renderer.
 
 ### Request flow
 
@@ -117,15 +120,17 @@ The response shape must remain compatible with the current browser renderer.
 6. Generate one 512-dimensional query embedding with `text-embedding-3-small`.
 7. Call `public.hybrid_search_papers` with the raw idea text, query vector, and a maximum of 12 results.
 8. If no evidence is returned, construct the existing corpus-scoped abstention report without calling the analysis model.
-9. If evidence exists, call the OpenAI Responses API with structured JSON output.
+9. If evidence exists, call the OpenAI Responses API using `gpt-5-mini`, `max_output_tokens: 1800`, `store: false`, and strict structured JSON output.
 10. Validate every returned paper reference against the retrieved paper IDs.
 11. Overwrite title, conference, evidence excerpt, and source URL with canonical retrieved values before returning the report.
 12. Return only safe error codes/messages. Do not proxy provider error bodies to the browser.
 
 ### OpenAI analysis contract
 
-The analysis call will preserve the existing safeguards:
+The analysis call preserves the existing safeguards:
 
+- model: `gpt-5-mini`;
+- `max_output_tokens: 1800`;
 - `store: false`;
 - structured output using strict JSON Schema;
 - model may reference only supplied retrieved paper IDs;
@@ -133,13 +138,11 @@ The analysis call will preserve the existing safeguards:
 - research ideas and paper metadata are untrusted data and cannot override developer instructions;
 - no statement that an idea is globally novel or has never been studied.
 
-The production analysis model defaults to the existing configured analysis model unless a compatibility test requires an update.
-
 ## Edge Function: `corpus-status`
 
 ### Public API
 
-`GET https://<project-ref>.supabase.co/functions/v1/corpus-status`
+`GET https://euptkcjwunpnwiqejtru.supabase.co/functions/v1/corpus-status`
 
 Returns only public corpus metadata needed by the page:
 
@@ -159,15 +162,15 @@ Returns only public corpus metadata needed by the page:
 
 It must not return database credentials, internal worker state, raw rejection payloads, or provider secrets.
 
-A short public cache is acceptable for this endpoint; the analysis endpoint is always `no-store`.
+The endpoint may return `Cache-Control: public, max-age=60`; the analysis endpoint always returns `Cache-Control: no-store`.
 
 ## Browser integration
 
 PR #5 remains the visual base.
 
-The browser must no longer assume same-origin `/api/*` when served on GitHub Pages. It will read a public runtime configuration containing only the Supabase Edge Function base URL.
+The browser no longer assumes same-origin `/api/*` when served on GitHub Pages. It reads a public runtime configuration containing only the Supabase Edge Function base URL.
 
-Example checked-in public configuration:
+Checked-in public configuration:
 
 ```js
 window.__IDEA_RADAR_CONFIG__ = {
@@ -177,97 +180,133 @@ window.__IDEA_RADAR_CONFIG__ = {
 
 This project URL is public information and is safe to ship. No publishable, secret, service-role, or OpenAI key is embedded in the GitHub Pages artifact.
 
-The page will call:
+The page calls:
 
 ```text
 POST <apiBaseUrl>/analyze-idea
 GET  <apiBaseUrl>/corpus-status
 ```
 
-Local development keeps a same-origin fallback so the existing Node server can still be tested locally.
+Local development keeps a same-origin fallback so the existing Node server remains testable locally.
 
 ### GitHub Pages subpath compatibility
 
-The site will be published under the repository project path, expected to be:
+The site is published at:
 
 ```text
 https://mamingsuper.github.io/newresearch/
 ```
 
-Static references must therefore be relative or Pages-aware. Root-absolute references such as `/styles.css` and `/app.js` must not remain in the Pages artifact because they would resolve against `mamingsuper.github.io/` instead of `/newresearch/`.
+Static references must therefore be relative or Pages-aware. Root-absolute references such as `/styles.css` and `/app.js` must not remain in the Pages artifact because they resolve against `mamingsuper.github.io/` instead of `/newresearch/`.
 
-The deployment must verify HTML, CSS, JS, and runtime config load successfully from the repository subpath.
+The deployment verifies HTML, CSS, JS, and runtime config load successfully from the repository subpath.
 
 ## CORS
 
-The Edge Functions will support browser invocation with explicit preflight handling.
+The Edge Functions support browser invocation with explicit preflight handling.
 
-Allowed production origin:
+Allowed origins are exactly:
 
 ```text
 https://mamingsuper.github.io
+http://localhost:3000
+http://127.0.0.1:3000
 ```
 
-Local development origins may be allowed explicitly for testing.
+Any other browser `Origin` receives no permissive CORS header.
 
-Responses include the appropriate `Access-Control-Allow-Origin`, methods, and content headers. CORS is not treated as an authentication or abuse-prevention mechanism.
+Responses include the appropriate `Access-Control-Allow-Origin`, `Access-Control-Allow-Methods`, and `Access-Control-Allow-Headers` values. CORS is not treated as authentication or abuse prevention.
 
 ## Secrets and privileged access
 
 `OPENAI_API_KEY` remains a Supabase Custom secret and is read only inside Edge Functions.
 
-Supabase-hosted Edge Functions may use the server-side secret key available in the Edge environment to invoke service-role-only RPC/database operations. That secret must never be returned to or bundled into the browser.
+A new server-only `RATE_LIMIT_HMAC_KEY` secret is generated during deployment. It is used only to HMAC the client network identifier before rate-limit storage.
 
-The browser does not require the Supabase service-role key.
+Supabase-hosted Edge Functions use the server-side secret key available in the Edge environment for service-role-only RPC/database operations. That secret never reaches the browser.
 
 No secret value is written to repository files, GitHub Actions logs, function responses, or application logs.
 
 ## Beta abuse controls
 
-Because the page is intentionally usable without login, the analysis function needs server-side cost protection.
+Because the page is intentionally usable without login, anonymous OpenAI usage is bounded server-side.
 
 For the first public beta:
 
 - maximum idea length: 5000 characters;
 - maximum request body: 32 KiB;
 - maximum retrieved papers sent to analysis: 12;
-- fixed upper bound on analysis output tokens;
-- rate limit before the embedding call;
-- rate-limit key derived from a one-way HMAC of client network identity with a server-only salt; raw IP is not persisted;
-- rate-limit rows expire automatically and contain no research idea text;
+- analysis model: `gpt-5-mini`;
+- analysis output cap: 1800 tokens;
+- per-client rate limit: 5 analysis requests per 60 seconds;
+- per-client hourly rate limit: 30 analysis requests per 3600 seconds;
+- both limits are checked before the embedding call;
+- rate-limit key is `HMAC-SHA-256(RATE_LIMIT_HMAC_KEY, normalized-client-network-identifier)`;
+- raw IP/network identifier is never persisted;
+- rate-limit rows older than two hours are opportunistically deleted by the rate-limit RPC;
+- rate-limit rows contain no research idea text;
 - provider 429/5xx errors return generic retryable errors to the client;
 - raw idea text is never written to normal logs.
 
 The beta does not add accounts, billing, CAPTCHA, or user profile storage in this deployment.
 
+## Rate-limit database primitive
+
+Create a private table:
+
+```text
+private.beta_rate_limit_buckets
+- client_hash text not null
+- window_kind text not null check in ('minute', 'hour')
+- window_started_at timestamptz not null
+- request_count integer not null
+- updated_at timestamptz not null
+- primary key (client_hash, window_kind, window_started_at)
+```
+
+Create a service-role-only RPC:
+
+```text
+public.consume_beta_rate_limit(client_hash text)
+  -> allowed boolean, retry_after_seconds integer
+```
+
+The RPC atomically checks/increments the minute and hourly buckets, enforces 5/minute and 30/hour, and deletes bucket rows older than two hours. Revoke execute from `public`, `anon`, and `authenticated`; grant execute only to `service_role`.
+
+No user idea is stored in this table or elsewhere by the deployment.
+
 ## GitHub Pages deployment workflow
 
-Add a dedicated Pages workflow that runs only after quality verification for `main`.
+Add a dedicated Pages workflow for `main`.
 
 Build/deploy behavior:
 
 1. checkout repository;
-2. run the normal verification command(s);
-3. prepare a Pages artifact containing the static `public/` assets and `.nojekyll`;
-4. verify all asset paths work under `/newresearch/`;
-5. use GitHub's Pages actions to upload and deploy the artifact;
-6. publish to the `github-pages` environment;
-7. expose the deployment URL from the workflow output.
+2. install dependencies with the existing lockfile;
+3. run the repository verification commands;
+4. prepare a Pages artifact containing the static `public/` assets and `.nojekyll`;
+5. verify all asset references are valid under `/newresearch/`;
+6. use `actions/configure-pages@v5`;
+7. use `actions/upload-pages-artifact@v4`;
+8. deploy with `actions/deploy-pages@v4`;
+9. publish to the `github-pages` environment;
+10. expose the deployment URL from the deployment step output.
 
-The workflow will use GitHub's current Pages actions and required `pages: write` / `id-token: write` permissions.
+The deploy job receives `pages: write` and `id-token: write`; repository contents remain read-only.
 
-Repository Pages settings must use **GitHub Actions** as the publishing source. If the connector cannot change that repository setting programmatically, this is the only manual repository-setting step the user may need to perform.
+Repository Pages settings must use **GitHub Actions** as the publishing source. The connector will configure this if an action exists; otherwise this is the only manual repository-setting step required from the user.
 
 ## Database changes
 
-A new migration will add only what the deployment requires:
+A new migration adds only what the deployment requires:
 
 1. corrective production embedding-job contract for unfinished jobs;
-2. a minimal beta rate-limit table/RPC or equivalent server-only database primitive;
-3. grants restricted to service-role/secret-key use;
-4. RLS/revokes consistent with the existing backend-only corpus tables.
+2. `private.beta_rate_limit_buckets`;
+3. `public.consume_beta_rate_limit(client_hash text)`;
+4. service-role-only grants;
+5. RLS/revokes consistent with the existing backend-only corpus tables.
 
-No user idea table is introduced.
+The migration does not rewrite completed paper vectors and does not create a user idea table.
 
 ## Failure behavior
 
@@ -277,7 +316,7 @@ Return `503` with a safe message. Do not call OpenAI analysis without retrieval 
 
 ### Embedding provider unavailable
 
-Return a retryable `502`/`503` response. Do not fall back to a different embedding model.
+Return a retryable `502` or `503`. Do not fall back to another embedding model.
 
 ### Analysis provider unavailable
 
@@ -289,7 +328,7 @@ Return the corpus-scoped abstention/empty-evidence report. Absence in the indexe
 
 ### Invalid model contract
 
-Fail closed if the live query embedding model/dimension differs from the production corpus contract.
+Fail closed if the live query embedding model/dimension differs from `text-embedding-3-small` / 512.
 
 ## Testing strategy
 
@@ -298,14 +337,16 @@ Implementation follows TDD.
 ### Unit/contract tests
 
 - request validation: body size, JSON, 20/5000 character bounds;
-- CORS preflight and allowed origin;
+- CORS preflight and the exact allowed-origin set;
 - embedding request uses `text-embedding-3-small` and 512 dimensions;
 - query vector must be exactly 512 dimensions;
-- hybrid-search result limit is bounded;
-- unknown model-generated paper IDs are removed/rejected;
+- hybrid-search result limit is bounded at 12;
+- unknown model-generated paper IDs are rejected;
 - canonical paper fields overwrite model-provided paper metadata;
 - no-evidence path does not invoke the analysis model;
-- rate limit happens before provider calls;
+- rate limiting happens before provider calls;
+- 5/minute and 30/hour limits are enforced atomically;
+- raw network identifiers and raw ideas are not stored by rate limiting;
 - no secret appears in browser configuration;
 - Pages asset paths work under `/newresearch/`.
 
@@ -315,20 +356,22 @@ Implementation follows TDD.
 - `corpus-status` reports 8,906 papers and 8,906 embedded papers before public launch;
 - live hybrid search returns both APSA and ICA candidates for known cross-corpus topics;
 - malformed requests never trigger OpenAI calls;
-- public endpoint returns CORS headers to the GitHub Pages origin.
+- public endpoint returns CORS headers to the GitHub Pages origin;
+- a disallowed origin receives no permissive CORS header.
 
 ### Deployment verification
 
 After Pages deployment:
 
-1. open the published Pages URL;
-2. verify CSS/JS load with no 404s;
+1. open `https://mamingsuper.github.io/newresearch/`;
+2. verify HTML, CSS, JS, and runtime config load with no 404s;
 3. verify the page displays live corpus counts;
 4. submit one English idea and one Chinese idea;
 5. confirm returned paper links point to canonical source URLs;
 6. confirm there is no global novelty wording;
-7. confirm browser source contains no OpenAI or Supabase secret key;
-8. re-run Supabase security advisor after DDL changes.
+7. confirm browser-delivered source contains no OpenAI or Supabase secret key;
+8. confirm rate-limit behavior with controlled test requests;
+9. re-run Supabase security advisor after DDL changes.
 
 ## Rollback
 
@@ -355,14 +398,15 @@ This deployment does not add:
 The deployment is accepted only when all of the following are true:
 
 1. PR #5 UI is integrated into the deployment branch/main.
-2. GitHub Pages has a stable public URL and loads from `/newresearch/` without asset errors.
-3. `Start Testing` reaches the Supabase Edge Function from the browser.
-4. Production query embeddings use `text-embedding-3-small`, 512 dimensions.
-5. Database corpus vectors remain 8,906/8,906 complete under the same OpenAI embedding contract.
-6. A live English research idea returns a grounded report.
-7. A live Chinese research idea returns a grounded report or corpus-scoped abstention without failure.
-8. No browser-delivered asset contains secret credentials.
-9. Rate limiting prevents unbounded anonymous OpenAI usage.
-10. Supabase security advisor has no unresolved warning introduced by this deployment.
-11. Repository tests, syntax checks, build checks, and Pages deployment checks are green.
-12. The public page preserves the product's no-global-novelty and evidence-provenance guarantees.
+2. GitHub Pages is configured to publish with GitHub Actions.
+3. `https://mamingsuper.github.io/newresearch/` loads without asset errors.
+4. **Start Testing** reaches the Supabase `analyze-idea` Edge Function from the browser.
+5. Production query embeddings use `text-embedding-3-small`, 512 dimensions.
+6. Database corpus vectors remain 8,906/8,906 complete under the same OpenAI embedding contract.
+7. A live English research idea returns a grounded report.
+8. A live Chinese research idea returns a grounded report or corpus-scoped abstention without failure.
+9. No browser-delivered asset contains secret credentials.
+10. Anonymous analysis is bounded at 5 requests/minute and 30 requests/hour per client hash.
+11. Supabase security advisor has no unresolved warning introduced by this deployment.
+12. Repository tests, syntax checks, build checks, and Pages deployment checks are green.
+13. The public page preserves the no-global-novelty and evidence-provenance guarantees.
