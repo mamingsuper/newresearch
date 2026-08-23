@@ -21,7 +21,14 @@ normalized corpus fallback pass.
 
 The local sandbox cannot serve a page, but the controller completed the following
 true browser checks on a standard local HTTP surface. The observations are
-recorded here with that provenance. The two blocked rows are not PASS results.
+recorded here with that provenance.
+
+For returned-paper rendering, the controller injected one deterministic response
+with 20 records conforming to the Edge `relatedPapers` contract into a
+git-ignored `pages-dist` QA copy served by a basic local read-only static server.
+This validates the new frontend DOM/CSS renderer only; it is **not production
+retrieval evidence**. Production live analysis is deferred to the Stage D online
+acceptance.
 
 | Check | Viewport / setting | Result | Evidence / follow-up |
 | --- | --- | --- | --- |
@@ -33,11 +40,14 @@ recorded here with that provenance. The two blocked rows are not PASS results.
 | Corpus fallback and locale switch | Clean artifact tab, corpus-status unavailable, `lang=zh` | PASS | No console errors or warnings; `html lang=zh`; ledger displayed APSA/ICA and the Chinese 8,906-paper copy; mode displayed `语料库`; no horizontal overflow. |
 | Equivalent 200% reflow | 720 × 450 CSS viewport | PASS (equivalent viewport) | Used as the 1440px page's 200% equivalent: body 17px, mobile header, hero 688px, menu target 44.39px, no horizontal overflow. Native browser zoom was not verified. |
 | Anonymous analysis failure | localhost | PASS (failure behavior) | Returned a closed-dictionary error and generated no report. |
-| Twenty returned papers render once each | localhost | blocked | No successful anonymous report was available; the static contract only proves one append and does not substitute for rendered QA. |
-| Abstract overflow | rendered result cards | blocked | Requires a successful rendered result set. |
+| Twenty returned papers render once each | 1440 × 900 deterministic contract fixture | PASS (non-production retrieval evidence) | 20 cards, 20 unique `data-paper-id` values (`qa-paper-01`–`qa-paper-20`), 20 save buttons, 20 export buttons, and 20 metadata rows; progress said `报告已生成`. |
+| Abstract and card overflow | 1440 × 900 deterministic contract fixture | PASS (non-production retrieval evidence) | Abstract font 18px; abstract overflow 0; card overflow 0; page had no horizontal overflow. |
+| Mobile result cards and abstract overflow | 390 × 844 Chinese deterministic contract fixture | PASS (non-production retrieval evidence) | `lang=zh`; 20 cards and unique IDs; abstract font 17px; abstract/card/page overflow 0; no visible result offenders; action min-height 44.390625px. |
 | Reduced motion | Pages artifact with `prefers-reduced-motion: reduce` | PASS | `matchMedia` matched; `html` scroll behavior was `auto`; workspace nav, progress bar, and primary-button transition durations were 0s; results-v2 loaded the no-motion abstract-preview rule. |
 
-## Required follow-up
+## Acceptance conclusion
 
-Obtain a successful returned paper set before replacing the remaining two
-`blocked` rows with directly observed results.
+No Task 5 acceptance remains open. Native browser zoom was not directly
+simulated; the accepted 720 × 450 equivalent-CSS-viewport limitation above is
+the recorded substitute. Production live analysis remains a Stage D online
+acceptance, outside this fixture-based frontend rendering evidence.
