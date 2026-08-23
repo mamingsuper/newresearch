@@ -50,7 +50,7 @@ function mapRow(row, query) {
 export class SupabasePaperRetriever {
   constructor({ embeddingClient, rpcClient }) { this.embeddingClient = embeddingClient; this.rpcClient = rpcClient; }
   async search({ query, limit = 12 }) {
-    const queryEmbedding = await this.embeddingClient.embed(query, { dimensions: 512 });
+    const queryEmbedding = await this.embeddingClient.embed(query, { dimensions: 512, task: 'query' });
     if (!Array.isArray(queryEmbedding) || queryEmbedding.length !== 512) throw new Error('Embedding must contain exactly 512 dimensions.');
     const rows = await this.rpcClient.hybridSearch({ queryText: query, queryEmbedding, matchCount: Math.min(Math.max(Number(limit) || 12, 1), 30) });
     return rows.map((row) => mapRow(row, query));
