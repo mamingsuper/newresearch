@@ -111,3 +111,20 @@ test('idea radar landing page is a centered query-first research workbench', asy
   assert.match(script, /\/api\/analyze/);
   assert.match(script, /\/api\/corpus/);
 });
+
+test('results render canonical ranked papers with full abstracts and readable citations', async () => {
+  const script = await readFile(path.join(publicDir, 'app.js'), 'utf8');
+  const styles = await readFile(path.join(publicDir, 'styles.css'), 'utf8');
+
+  assert.match(script, /relatedPapers/);
+  assert.match(script, /function\s+renderRelatedPapers/);
+  assert.match(script, /authorYearLabel/);
+  assert.match(script, /paper\.abstract/);
+  assert.match(script, /relevance score/i);
+  assert.match(script, /evidenceReferences/);
+  assert.match(script, /data-paper-id/);
+  assert.doesNotMatch(script, /renderClosestWork\(report\.closestWork\)/);
+  assert.doesNotMatch(script, /Grounded in:[^\n]*evidencePaperIds/);
+  assert.match(styles, /\.related-paper-list\s*\{[\s\S]*grid-template-columns:\s*1fr/i);
+  assert.match(styles, /\.paper-abstract\s*\{[\s\S]*font-size:\s*1(?:\.0)?rem[\s\S]*line-height:\s*1\.65/i);
+});
