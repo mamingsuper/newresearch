@@ -146,13 +146,25 @@ Commit message: `feat: add public evidence analysis edge function`.
 
 Require GET-only behavior, safe projection, public cache header, same CORS allowlist, and no internal job/rejection/credential fields.
 
-- [ ] **Step 2: Verify RED**, then implement minimal handler using `get_corpus_stats`.
+- [ ] **Step 2: Run the focused test and verify RED**
 
-- [ ] **Step 3: Verify GREEN and deploy**
+Run: `node --test tests/edge-function-contract.test.mjs`
+
+Expected: FAIL because `corpus-status` does not exist.
+
+- [ ] **Step 3: Implement the minimal status handler**
+
+Call `get_corpus_stats`, project only the approved public fields, return `Cache-Control: public, max-age=60`, and share the same exact CORS allowlist.
+
+- [ ] **Step 4: Run the focused test and verify GREEN**
+
+Run the same focused command; expected PASS.
+
+- [ ] **Step 5: Deploy and verify live status**
 
 Live result must report `paperCount=8906`, `embeddedPaperCount=8906`, `pendingEmbeddingCount=0`, `failedEmbeddingCount=0`, `ready=true`.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 6: Commit**
 
 Commit message: `feat: expose public corpus status edge function`.
 
@@ -193,7 +205,7 @@ Commit message: `feat: deploy Idea Radar with GitHub Pages`.
 
 **Files:**
 - Modify: `README.md`
-- Modify: approved spec status/plan checkboxes if useful.
+- Modify: `docs/superpowers/specs/2026-08-23-github-pages-supabase-edge-design.md` status from Approved to Implemented only after all acceptance criteria pass.
 
 **Interfaces:**
 - Produces: public `https://mamingsuper.github.io/newresearch/` and live Edge API.
