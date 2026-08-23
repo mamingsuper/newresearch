@@ -74,6 +74,17 @@ test('typography floor audit rejects important, decimal, and mixed-selector smal
   ]);
 });
 
+test('typography floor audit recognizes integer rem lower and passing boundaries', () => {
+  const violations = findSmallTextViolations(`
+    .unapproved-zero-rem { font-size: 0rem; }
+    .unapproved-one-rem { font-size: 1rem; }
+  `);
+
+  assert.deepEqual(violations, [
+    '.unapproved-zero-rem => 0rem',
+  ]);
+});
+
 test('workspace shell exposes focused navigation, responsive controls, and account intent destinations', async () => {
   const html = await text('public/index.html');
   const css = await text('public/styles.css');
