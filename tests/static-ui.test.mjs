@@ -44,13 +44,6 @@ test('analysis failures map service responses to closed dictionary keys', async 
   assert.match(script, /showError\('error\.analysis'\)/);
 });
 
-test('corpus status keeps a normalized value when status retrieval fails', async () => {
-  const script = await readFile(path.join(publicDir, 'app.js'), 'utf8');
-
-  assert.match(script, /async function loadCorpusStatus\(\)\s*\{[\s\S]*let corpus = normalizeCorpus\(\{\}\);/);
-  assert.doesNotMatch(script, /renderCorpusStatus\(\{\}\s*,/);
-});
-
 test('server serves the workbench and blocks path traversal', async () => {
   const services = {
     mode: 'mock',

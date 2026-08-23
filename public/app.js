@@ -1,5 +1,6 @@
 import { createTranslator } from './i18n.js';
 import { createWorkspaceUiState, initWorkspaceNavigation } from './workspace.js';
+import { createCorpusStatusModel, normalizeCorpus, scrollBehaviorForMotionPreference } from './workspace-behaviors.js';
 
 const LOCALE_STORAGE_KEY = 'idea-radar-locale';
 const readLocale = () => {
@@ -92,10 +93,6 @@ function element(tagName, options = {}) {
 
 function asArray(value) {
   return Array.isArray(value) ? value : [];
-}
-
-function formatCount(value) {
-  return Number.isFinite(Number(value)) ? Number(value).toLocaleString('en-US') : '—';
 }
 
 function formatScore(value) {
@@ -421,7 +418,10 @@ function renderReport(report, { scroll = true } = {}) {
   reportRoot.append(finalGrid);
 
   reportSection.hidden = false;
-  if (scroll) reportSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (scroll) {
+    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    reportSection.scrollIntoView({ behavior: scrollBehaviorForMotionPreference(prefersReducedMotion), block: 'start' });
+  }
 }
 
 function renderUiState() {
@@ -556,41 +556,14 @@ form.addEventListener('submit', async (event) => {
   }
 });
 
-function normalizeCorpus(payload) {
-  const candidate = payload?.data?.stats ?? payload?.data ?? payload?.stats ?? payload ?? {};
-  return {
-    paperCount: candidate.paperCount ?? candidate.paper_count,
-    papersWithAbstract: candidate.papersWithAbstract ?? candidate.papers_with_abstract,
-    embeddedPaperCount: candidate.embeddedPaperCount ?? candidate.embedded_count,
-    pendingEmbeddingCount: candidate.pendingEmbeddingCount ?? candidate.pending_embedding_count,
-    ready: candidate.ready,
-    conferences: asArray(candidate.conferences),
-  };
-}
-
 function renderCorpusStatus(corpus, mode) {
-  latestCorpus = corpus;
+  const model = createCorpusStatusModel(corpus, mode, t);
+  latestCorpus = model.corpus;
   latestCorpusMode = mode;
-  const count = Number(corpus.paperCount);
-  const abstracts = Number(corpus.papersWithAbstract);
-  const conferenceParts = corpus.conferences.map((conference) => {
-    if (typeof conference === 'string') return conference;
-    const name = conference.name ?? conference.slug?.toUpperCase();
-    const year = conference.year;
-    const papers = Number(conference.papers);
-    const label = [name, year].filter(Boolean).join(' ');
-    return Number.isInteger(papers) ? `${label} · ${t('corpus.papers', { count: formatCount(papers) })}` : label;
-  }).filter(Boolean);
-
-  if (conferenceParts.length) {
-    const abstractCount = Number.isInteger(abstracts) ? abstracts : count;
-    corpusLedger.textContent = `${conferenceParts.join(' + ')}${Number.isInteger(abstractCount) ? ` = ${t('corpus.abstracts', { count: formatCount(abstractCount) })}` : ''}`;
-  }
-
-  const modeLabel = mode === 'live' ? t('corpus.live') : mode === 'mock' ? t('corpus.demo') : t('corpus.default');
+  if (model.ledgerText) corpusLedger.textContent = model.ledgerText;
   modeBadge.replaceChildren(
     element('span', { className: 'live-dot', attributes: { 'aria-hidden': 'true' } }),
-    document.createTextNode(` ${modeLabel}${Number.isInteger(count) ? ` · ${t('corpus.papers', { count: formatCount(count) })}` : ''}`),
+    document.createTextNode(` ${model.modeText}`),
   );
 }
 
