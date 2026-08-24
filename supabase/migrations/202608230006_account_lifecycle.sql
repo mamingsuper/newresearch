@@ -4,6 +4,7 @@ create table if not exists workspace_private.account_deletion_retries (
   error_code text not null check (char_length(error_code) between 1 and 64),
   created_at timestamptz not null default now()
 );
+alter table workspace_private.account_deletion_retries enable row level security;
 revoke all on table workspace_private.account_deletion_retries from public,anon,authenticated;
 grant all on table workspace_private.account_deletion_retries to service_role;
 
