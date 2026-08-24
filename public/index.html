@@ -278,11 +278,32 @@
         </div>
 
         <div id="auth-authenticated-controls" hidden>
-          <p data-i18n="auth.authenticated">You are signed in. Your private workspace is available on this device.</p>
+          <div class="account-identity-card">
+            <span data-i18n="account.signedInAs">Signed in as</span>
+            <strong id="account-email"></strong>
+          </div>
+          <div class="account-plan-card">
+            <div>
+              <span data-i18n="account.currentPlan">Current plan</span>
+              <strong data-i18n="account.freeBeta">Free beta</strong>
+            </div>
+            <p data-i18n="account.planPreview">Free: 1 analysis/day · Pro: $10/month with unlimited analyses. Billing is not active yet.</p>
+          </div>
+          <div class="account-library-grid" aria-label="Private workspace" data-i18n-aria-label="account.workspace">
+            <button id="account-saved-papers" type="button">
+              <span data-i18n="nav.savedPapers">Saved papers</span>
+              <strong id="account-saved-count">—</strong>
+            </button>
+            <button id="account-conversations" type="button">
+              <span data-i18n="nav.conversations">Conversations</span>
+              <strong id="account-conversation-count">—</strong>
+            </button>
+          </div>
           <div class="account-actions">
             <button id="account-export" type="button" data-i18n="account.export">Download my data</button>
             <button id="account-delete" class="danger-button" type="button" data-i18n="account.delete">Delete account</button>
           </div>
+          <p id="account-status" class="account-status" role="status" aria-live="polite"></p>
           <button id="auth-sign-out" type="button" data-i18n="auth.signOut">Sign out</button>
         </div>
 

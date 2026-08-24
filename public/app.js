@@ -41,6 +41,8 @@ const localeSelector = document.querySelector('#locale-selector');
 const authIntentStatus = document.querySelector('#auth-intent-status');
 const accountEntry = document.querySelector('.account-entry');
 const authDialog = document.querySelector('#auth-dialog');
+const authDialogTitle = document.querySelector('#auth-dialog-title');
+const authDialogCopy = document.querySelector('.auth-dialog-copy');
 const savedPapersSection = document.querySelector('#saved-papers');
 const savedPapersRoot = document.querySelector('#saved-papers-root');
 const savedPapersFilter = document.querySelector('#saved-papers-filter');
@@ -58,6 +60,12 @@ const adminSubmissionsRoot = document.querySelector('#admin-submissions-root');
 const adminSubmissionsStatus = document.querySelector('#admin-submissions-status');
 const accountExportButton = document.querySelector('#account-export');
 const accountDeleteButton = document.querySelector('#account-delete');
+const accountStatus = document.querySelector('#account-status');
+const accountEmail = document.querySelector('#account-email');
+const accountSavedPapersButton = document.querySelector('#account-saved-papers');
+const accountConversationsButton = document.querySelector('#account-conversations');
+const accountSavedCount = document.querySelector('#account-saved-count');
+const accountConversationCount = document.querySelector('#account-conversation-count');
 
 const PROGRESS_STAGES = [
   { target: 5, key: 'progress.stage.understanding' },
@@ -114,6 +122,7 @@ function setLocale(locale) {
   applyStaticTranslations();
   localeSelector.value = translator.locale;
   accountEntry.textContent = t(authState.status === 'authenticated' ? 'nav.account' : 'nav.signIn');
+  renderAccountOverview();
   authUi?.refresh();
   updateCharacterCount();
   renderUiState();
@@ -123,6 +132,40 @@ function setLocale(locale) {
   if (!conversationsSection.hidden) renderConversations();
   renderConferenceLibraryState();
   updatePaperActionButtons();
+}
+
+function renderAccountOverview() {
+  const authenticated = authState.status === 'authenticated';
+  const titleKey = authenticated ? 'account.title' : 'auth.title';
+  const copyKey = authenticated ? 'account.copy' : 'auth.copy';
+  authDialogTitle.dataset.i18n = titleKey;
+  authDialogTitle.textContent = t(titleKey);
+  authDialogCopy.dataset.i18n = copyKey;
+  authDialogCopy.textContent = t(copyKey);
+  accountEmail.textContent = authenticated ? authState.user?.email ?? '' : '';
+  accountSavedCount.textContent = authenticated && privateCacheGuard.owns('saved', authState.user?.id) ? String(savedPaperItems.length) : '—';
+  accountConversationCount.textContent = authenticated && privateCacheGuard.owns('conversations', authState.user?.id) ? String(conversationItems.length) : '—';
+}
+
+async function refreshAccountOverview() {
+  const ownerId = authState.user?.id ?? null;
+  if (!ownerId) return;
+  accountSavedCount.textContent = '…';
+  accountConversationCount.textContent = '…';
+  try {
+    const [papers, conversations] = await Promise.all([savedPaperStore.list(), conversationStore.list()]);
+    if (!privateCacheGuard.isActive(ownerId)) return;
+    savedPaperItems = papers;
+    conversationItems = conversations;
+    privateCacheGuard.mark('saved', ownerId);
+    privateCacheGuard.mark('conversations', ownerId);
+    savedPaperController.replace(savedPaperItems);
+    renderAccountOverview();
+  } catch {
+    if (!privateCacheGuard.isActive(ownerId)) return;
+    accountSavedCount.textContent = '!';
+    accountConversationCount.textContent = '!';
+  }
 }
 
 function clearElement(element) {
@@ -1035,6 +1078,7 @@ authUi = initAuthUi({
   onSessionChange(state) {
     const cacheTransition = privateCacheGuard.transition(state.user?.id ?? null);
     authState = state;
+    renderAccountOverview();
     accountEntry.dataset.authState = state.status;
     accountEntry.textContent = t(state.status === 'authenticated' ? 'nav.account' : 'nav.signIn');
     if (cacheTransition.userChanged) {
@@ -1070,6 +1114,7 @@ authUi = initAuthUi({
 initAccountActions({
   exportButton: accountExportButton,
   deleteButton: accountDeleteButton,
+  status: accountStatus,
   getAccessToken: currentAccessToken,
   endpoint: edgeApiBase || '/api',
   download(blob, filename) { const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = filename; link.click(); URL.revokeObjectURL(url); },
@@ -1078,7 +1123,11 @@ initAccountActions({
 });
 authActionRouter = createAuthActionRouter({
   getAuthState: () => authState,
-  openAuth: (intent) => authUi.open(intent),
+  openAuth(intent) {
+    const opened = authUi.open(intent);
+    if (opened && authState.status === 'authenticated') void refreshAccountOverview();
+    return opened;
+  },
   dispatchIntent(intent) {
     void executeAuthenticatedIntent(intent);
     window.dispatchEvent(new CustomEvent('idea-radar:auth-intent', { detail: intent }));
@@ -1087,6 +1136,14 @@ authActionRouter = createAuthActionRouter({
     uiState.setAuthIntent(action);
     renderUiState();
   },
+});
+accountSavedPapersButton.addEventListener('click', (event) => {
+  authDialog.close();
+  requestAccountAction('saved-papers', '', event.currentTarget);
+});
+accountConversationsButton.addEventListener('click', (event) => {
+  authDialog.close();
+  requestAccountAction('conversations', '', event.currentTarget);
 });
 if (programSubmissionForm) {
   const programController = createProgramSubmissionController({
