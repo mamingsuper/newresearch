@@ -17,6 +17,8 @@
 }
 
 .related-paper-card {
+  --spot-x: 50%;
+  --spot-y: 50%;
   position: relative;
   display: grid;
   grid-template-columns: 96px minmax(0, 1fr);
@@ -25,11 +27,25 @@
   border: 1px solid var(--ink);
   background: var(--surface-strong);
   box-shadow: 4px 5px 0 rgba(17, 17, 17, .13);
+  transition: transform .32s cubic-bezier(.22,1,.36,1), box-shadow .32s ease;
 }
+
+.related-paper-card::after {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  content: "";
+  background: radial-gradient(16rem circle at var(--spot-x) var(--spot-y), rgba(36, 71, 216, .07), transparent 72%);
+}
+
+.related-paper-card > * { position: relative; z-index: 1; }
 
 .related-paper-card:focus-within,
 .related-paper-card:hover {
   z-index: 12;
+  transform: translateY(-4px);
+  box-shadow: 7px 9px 0 rgba(17, 17, 17, .14), 0 1.4rem 3rem rgba(70, 56, 35, .1);
 }
 
 .paper-rank {

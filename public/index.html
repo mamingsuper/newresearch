@@ -8,38 +8,53 @@
       content="Test an early-stage social-science research idea against live conference-paper evidence."
     />
     <meta name="theme-color" content="#f6f0e4" />
-    <meta property="og:title" content="Idea Radar — Research Frontier Testing" />
+    <meta property="og:title" content="Idea Radar | Research Frontier Testing" />
     <meta property="og:description" content="Map a social-science research idea against APSA and ICA conference evidence." />
-    <title>Idea Radar — Research Frontier Testing</title>
+    <title>Idea Radar | Research Frontier Testing</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css?v=20260824-taste3" />
-    <link rel="stylesheet" href="./results-v2.css?v=20260824-taste3" />
+    <link rel="preload" as="image" href="./assets/evidence-network.jpg" fetchpriority="high" />
+    <link rel="stylesheet" href="./styles.css?v=20260824-workspace2" />
+    <link rel="stylesheet" href="./results-v2.css?v=20260824-workspace2" />
   </head>
   <body>
     <a class="skip-link" href="#idea-input" data-i18n="skip.ideaTesting">Skip to idea testing</a>
 
     <div class="workspace-shell" id="workspace-shell">
       <aside class="workspace-sidebar" id="workspace-nav" aria-label="Workspace navigation" data-i18n-aria-label="nav.label">
-        <a class="brand" href="#new-analysis">
-          <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
-          <span>Idea Radar</span>
-        </a>
+        <div class="workspace-sidebar-head">
+          <a class="brand" href="#new-analysis">
+            <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
+            <span>Idea Radar</span>
+          </a>
+          <span class="workspace-name" data-i18n="nav.researchWorkspace">Research workspace</span>
+        </div>
         <nav>
-          <a href="#new-analysis" aria-current="page" data-i18n="nav.newAnalysis">New analysis</a>
-          <a href="#conference-library" data-i18n="nav.conferenceLibrary">Conference library</a>
-          <button type="button" data-auth-intent="saved-papers" data-i18n="nav.savedPapers">Saved papers</button>
-          <button type="button" data-auth-intent="conversations" data-i18n="nav.conversations">Conversations</button>
-          <a href="#submit-program" data-i18n="nav.submitProgram">Submit a program</a>
+          <div class="nav-group">
+            <p class="nav-group-label" data-i18n="nav.work">Work</p>
+            <a href="#new-analysis" aria-current="page" data-i18n="nav.newAnalysis">New analysis</a>
+          </div>
+          <div class="nav-group">
+            <p class="nav-group-label" data-i18n="nav.library">Library</p>
+            <a href="#conference-library" data-i18n="nav.conferenceLibrary">Conference library</a>
+            <button type="button" data-auth-intent="saved-papers" data-i18n="nav.savedPapers">Saved papers</button>
+            <button type="button" data-auth-intent="conversations" data-i18n="nav.conversations">Conversations</button>
+          </div>
+          <div class="nav-group">
+            <p class="nav-group-label" data-i18n="nav.contribute">Contribute</p>
+            <a href="#submit-program" data-i18n="nav.submitProgram">Submit a program</a>
+          </div>
         </nav>
-        <button class="account-entry" type="button" data-auth-intent="sign-in" data-i18n="nav.signIn">Sign in</button>
-        <label for="locale-selector" class="sr-only" data-i18n="nav.language">Language</label>
-        <select id="locale-selector" aria-label="Language" data-i18n-aria-label="nav.language">
-          <option value="en" data-i18n="nav.english">English</option>
-          <option value="zh" data-i18n="nav.chinese">中文</option>
-        </select>
-        <div class="mode-badge" id="mode-badge" aria-live="polite">
-          <span class="live-dot" aria-hidden="true"></span>
-          <span data-i18n="shell.checkingCorpus">Checking corpus…</span>
+        <div class="workspace-sidebar-footer">
+          <div class="mode-badge" id="mode-badge" aria-live="polite">
+            <span class="live-dot" aria-hidden="true"></span>
+            <span data-i18n="shell.checkingCorpus">Checking corpus…</span>
+          </div>
+          <label for="locale-selector" class="sr-only" data-i18n="nav.language">Language</label>
+          <select id="locale-selector" aria-label="Language" data-i18n-aria-label="nav.language">
+            <option value="en" data-i18n="nav.english">English</option>
+            <option value="zh" data-i18n="nav.chinese">中文</option>
+          </select>
+          <button class="account-entry" type="button" data-auth-intent="sign-in" data-i18n="nav.signIn">Sign in</button>
         </div>
       </aside>
 
@@ -49,7 +64,10 @@
             <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
             <span>Idea Radar</span>
           </a>
-          <button id="workspace-menu-button" type="button" aria-controls="workspace-nav" aria-expanded="false" data-i18n="nav.menu">Menu</button>
+          <div class="mobile-workspace-actions">
+            <button class="account-entry mobile-account-entry" id="mobile-account-entry" type="button" data-auth-intent="sign-in" data-i18n="nav.signIn">Sign in</button>
+            <button id="workspace-menu-button" type="button" aria-controls="workspace-nav" aria-expanded="false" data-i18n="nav.menu">Menu</button>
+          </div>
         </header>
 
         <div class="workspace-status-region shell">
@@ -262,19 +280,17 @@
 
     <dialog class="auth-dialog" id="auth-dialog" aria-labelledby="auth-dialog-title">
       <div class="auth-dialog-card">
-        <div>
+        <div class="auth-dialog-heading">
+          <span class="brand-mark auth-product-mark" aria-hidden="true"><i></i><i></i></span>
+          <button class="auth-cancel" id="auth-cancel" type="button" aria-label="Close" data-i18n-aria-label="auth.cancel">×</button>
+        </div>
+        <div class="auth-dialog-intro">
           <p class="eyebrow" data-i18n="auth.eyebrow">Private research workspace</p>
           <h2 id="auth-dialog-title" data-i18n="auth.title">Sign in to save your work</h2>
           <p class="auth-dialog-copy" data-i18n="auth.copy">Continue with a secure magic link or an enabled provider. An account is required for analysis.</p>
         </div>
 
         <div id="auth-anonymous-controls">
-          <form id="auth-form" novalidate>
-            <label for="auth-email" data-i18n="auth.email">Email address</label>
-            <input id="auth-email" name="email" type="email" autocomplete="email" maxlength="254" required />
-            <button class="primary-button" id="auth-email-submit" type="submit" data-i18n="auth.emailSubmit">Email me a sign-in link</button>
-          </form>
-          <p class="auth-divider" id="auth-provider-divider" data-i18n="auth.or" hidden>or</p>
           <div class="auth-provider-actions" id="auth-provider-actions" hidden>
             <button class="auth-provider-button" id="auth-google" type="button" hidden>
               <svg class="auth-provider-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -292,49 +308,84 @@
               <span id="auth-github-label" data-i18n="auth.github">Continue with GitHub</span>
             </button>
           </div>
+          <p class="auth-divider" id="auth-provider-divider" data-i18n="auth.or" hidden>or</p>
+          <form id="auth-form" novalidate>
+            <label for="auth-email" data-i18n="auth.email">Email address</label>
+            <input id="auth-email" name="email" type="email" autocomplete="email" maxlength="254" required />
+            <button class="primary-button" id="auth-email-submit" type="submit" data-i18n="auth.emailSubmit">Email me a sign-in link</button>
+          </form>
         </div>
 
         <div id="auth-authenticated-controls" hidden>
-          <div class="account-identity-card">
-            <span data-i18n="account.signedInAs">Signed in as</span>
-            <strong id="account-email"></strong>
+          <aside class="account-settings-nav" aria-label="Account settings" data-i18n-aria-label="account.settingsNav">
+            <a href="#account-overview" data-i18n="account.overview">Overview</a>
+            <a href="#account-plan" data-i18n="account.planUsage">Plan &amp; usage</a>
+            <a href="#account-privacy" data-i18n="account.dataPrivacy">Data &amp; privacy</a>
+          </aside>
+          <div class="account-settings-content">
+            <section class="account-settings-section" id="account-overview">
+              <div class="account-section-heading">
+                <p class="account-section-label" data-i18n="account.overview">Overview</p>
+                <p data-i18n="account.overviewCopy">Your identity and private research library.</p>
+              </div>
+              <div class="account-identity-card">
+                <span data-i18n="account.signedInAs">Signed in as</span>
+                <strong id="account-email"></strong>
+              </div>
+              <div class="account-library-grid" aria-label="Private workspace" data-i18n-aria-label="account.workspace">
+                <button id="account-saved-papers" type="button">
+                  <span data-i18n="nav.savedPapers">Saved papers</span>
+                  <strong id="account-saved-count">·</strong>
+                </button>
+                <button id="account-conversations" type="button">
+                  <span data-i18n="nav.conversations">Conversations</span>
+                  <strong id="account-conversation-count">·</strong>
+                </button>
+              </div>
+            </section>
+
+            <section class="account-settings-section" id="account-plan">
+              <div class="account-section-heading">
+                <p class="account-section-label" data-i18n="account.planUsage">Plan &amp; usage</p>
+                <p data-i18n="account.planCopy">Your current access and today's analysis allowance.</p>
+              </div>
+              <div class="account-plan-card">
+                <div class="account-plan-summary">
+                  <span data-i18n="account.currentPlan">Current plan</span>
+                  <strong id="account-plan-name" data-i18n="account.free">Free</strong>
+                </div>
+                <div class="account-usage-summary">
+                  <span data-i18n="account.allowance">Analysis allowance</span>
+                  <p id="account-plan-details" data-i18n="account.freeDetails">1 analysis remaining today.</p>
+                </div>
+                <div class="account-billing-actions">
+                  <button id="account-upgrade" class="primary-button" type="button" data-i18n="account.upgrade">Upgrade to Pro · $10/month</button>
+                  <button id="account-manage-billing" type="button" data-i18n="account.manageBilling" hidden>Manage subscription</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="account-settings-section" id="account-privacy">
+              <div class="account-section-heading">
+                <p class="account-section-label" data-i18n="account.dataPrivacy">Data &amp; privacy</p>
+                <p data-i18n="account.privacyCopy">Export your private workspace or permanently remove your account.</p>
+              </div>
+              <div class="account-actions">
+                <button id="account-export" type="button" data-i18n="account.export">Download my data</button>
+                <button id="auth-sign-out" type="button" data-i18n="auth.signOut">Sign out</button>
+                <button id="account-delete" class="danger-button" type="button" data-i18n="account.delete">Delete account</button>
+              </div>
+            </section>
+            <p id="account-status" class="account-status" role="status" aria-live="polite"></p>
           </div>
-          <div class="account-plan-card">
-            <div>
-              <span data-i18n="account.currentPlan">Current plan</span>
-              <strong id="account-plan-name" data-i18n="account.free">Free</strong>
-            </div>
-            <p id="account-plan-details" data-i18n="account.freeDetails">1 analysis remaining today.</p>
-            <div class="account-billing-actions">
-              <button id="account-upgrade" class="primary-button" type="button" data-i18n="account.upgrade">Upgrade to Pro — $10/month</button>
-              <button id="account-manage-billing" type="button" data-i18n="account.manageBilling" hidden>Manage subscription</button>
-            </div>
-          </div>
-          <div class="account-library-grid" aria-label="Private workspace" data-i18n-aria-label="account.workspace">
-            <button id="account-saved-papers" type="button">
-              <span data-i18n="nav.savedPapers">Saved papers</span>
-              <strong id="account-saved-count">—</strong>
-            </button>
-            <button id="account-conversations" type="button">
-              <span data-i18n="nav.conversations">Conversations</span>
-              <strong id="account-conversation-count">—</strong>
-            </button>
-          </div>
-          <div class="account-actions">
-            <button id="account-export" type="button" data-i18n="account.export">Download my data</button>
-            <button id="account-delete" class="danger-button" type="button" data-i18n="account.delete">Delete account</button>
-          </div>
-          <p id="account-status" class="account-status" role="status" aria-live="polite"></p>
-          <button id="auth-sign-out" type="button" data-i18n="auth.signOut">Sign out</button>
         </div>
 
         <p id="auth-status" class="auth-dialog-status" role="status" aria-live="polite"></p>
-        <button class="auth-cancel" id="auth-cancel" type="button" data-i18n="auth.cancel">Cancel</button>
       </div>
     </dialog>
 
-    <script src="./config.js"></script>
+    <script src="./config.js?v=20260824-workspace2"></script>
     <script src="./vendor/supabase-2.112.3.js"></script>
-    <script type="module" src="./app.js?v=20260824-taste3"></script>
+    <script type="module" src="./app.js?v=20260824-workspace2"></script>
   </body>
 </html>

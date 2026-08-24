@@ -10,6 +10,10 @@ test('authenticated account center exposes identity, library, plan, export, and 
     assert.match(html, new RegExp(`id="${id}"`));
   }
   assert.match(html, /account\.upgrade/);
+  assert.match(html, /class="account-settings-nav"/);
+  assert.match(html, /id="account-overview"/);
+  assert.match(html, /id="account-plan"/);
+  assert.match(html, /id="account-privacy"/);
   assert.match(script, /initBillingActions/);
   assert.match(script, /refreshAccountOverview/);
   assert.match(script, /requestAccountAction\('saved-papers'/);

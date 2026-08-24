@@ -209,6 +209,8 @@ export function initAuthUi({
       renderState(latestState?.status === 'authenticated' ? latestState : { status: 'anonymous', user: null });
       if (!dialog.open) dialog.showModal();
       if (latestState?.status === 'authenticated') signOut.focus();
+      else if (providerAvailability.google) google.focus();
+      else if (providerAvailability.github) github.focus();
       else email.focus();
       return true;
     },

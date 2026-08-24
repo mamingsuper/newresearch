@@ -1,8 +1,9 @@
-import { createTranslator } from './i18n.js?v=20260824-taste3';
-import { createWorkspaceUiState, initWorkspaceNavigation } from './workspace.js';
-import { createCorpusStatusModel, normalizeCorpus, presentRenderedReport } from './workspace-behaviors.js';
+import { createTranslator } from './i18n.js?v=20260824-workspace2';
+import { initPremiumMotion } from './motion.js?v=20260824-workspace2';
+import { createWorkspaceUiState, initWorkspaceNavigation } from './workspace.js?v=20260824-workspace2';
+import { createCorpusStatusModel, normalizeCorpus, presentRenderedReport } from './workspace-behaviors.js?v=20260824-workspace2';
 import { createAuthClient } from './auth-client.js';
-import { initAuthUi } from './auth-ui.js';
+import { initAuthUi } from './auth-ui.js?v=20260824-workspace2';
 import { createAuthActionRouter } from './auth-actions.js';
 import { initPublicAnalysisForm } from './analysis-form.js';
 import { createOptimisticSavedPaperController, createSavedPaperStore, renderSavedPaperLibrary } from './saved-papers.js';
@@ -10,10 +11,10 @@ import { createConversationStore, renderConversationList } from './conversations
 import { downloadExport, exportConversation, exportPapers } from './exports.js';
 import { createPrivateCacheGuard } from './private-cache-guard.js';
 import { createProgramSubmissionController, initProgramSubmissionUi } from './program-submission.js';
-import { loadConferencePrograms, renderConferencePrograms } from './conference-library.js';
+import { loadConferencePrograms, renderConferencePrograms } from './conference-library.js?v=20260824-workspace2';
 import { createAdminSubmissionController, renderAdminSubmissions } from './admin-submissions.js';
 import { initAccountActions } from './account.js';
-import { initBillingActions } from './billing.js';
+import { initBillingActions } from './billing.js?v=20260824-workspace2';
 
 const LOCALE_STORAGE_KEY = 'idea-radar-locale';
 const readLocale = () => {
@@ -40,7 +41,9 @@ const progressPercent = document.querySelector('#progress-percent');
 const progressStage = document.querySelector('#progress-stage');
 const localeSelector = document.querySelector('#locale-selector');
 const authIntentStatus = document.querySelector('#auth-intent-status');
-const accountEntry = document.querySelector('.account-entry');
+const accountEntries = [...document.querySelectorAll('.account-entry')];
+const accountEntry = accountEntries[0];
+const mobileAccountEntry = document.querySelector('#mobile-account-entry');
 const authDialog = document.querySelector('#auth-dialog');
 const authDialogTitle = document.querySelector('#auth-dialog-title');
 const authDialogCopy = document.querySelector('.auth-dialog-copy');
@@ -105,7 +108,8 @@ let conferenceLibraryState = null;
 const privateCacheGuard = createPrivateCacheGuard();
 
 const configuredApiBase = window.__IDEA_RADAR_CONFIG__?.apiBaseUrl?.trim();
-const edgeApiBase = window.location.hostname === 'mamingsuper.github.io' && configuredApiBase
+const edgeApiHosts = new Set(['mamingsuper.github.io', 'localhost', '127.0.0.1']);
+const edgeApiBase = edgeApiHosts.has(window.location.hostname) && configuredApiBase
   ? configuredApiBase.replace(/\/$/, '')
   : '';
 
@@ -127,7 +131,7 @@ function setLocale(locale) {
   try { window.localStorage.setItem(LOCALE_STORAGE_KEY, translator.locale); } catch { /* Preference is optional. */ }
   applyStaticTranslations();
   localeSelector.value = translator.locale;
-  accountEntry.textContent = t(authState.status === 'authenticated' ? 'nav.account' : 'nav.signIn');
+  for (const entry of accountEntries) entry.textContent = t(authState.status === 'authenticated' ? 'nav.account' : 'nav.signIn');
   renderAccountOverview();
   authUi?.refresh();
   updateCharacterCount();
@@ -149,8 +153,8 @@ function renderAccountOverview() {
   authDialogCopy.dataset.i18n = copyKey;
   authDialogCopy.textContent = t(copyKey);
   accountEmail.textContent = authenticated ? authState.user?.email ?? '' : '';
-  accountSavedCount.textContent = authenticated && privateCacheGuard.owns('saved', authState.user?.id) ? String(savedPaperItems.length) : '—';
-  accountConversationCount.textContent = authenticated && privateCacheGuard.owns('conversations', authState.user?.id) ? String(conversationItems.length) : '—';
+  accountSavedCount.textContent = authenticated && privateCacheGuard.owns('saved', authState.user?.id) ? String(savedPaperItems.length) : '·';
+  accountConversationCount.textContent = authenticated && privateCacheGuard.owns('conversations', authState.user?.id) ? String(conversationItems.length) : '·';
 }
 
 async function refreshAccountOverview() {
@@ -194,7 +198,7 @@ function asArray(value) {
 
 function formatScore(value) {
   const score = Number(value);
-  return Number.isFinite(score) ? score.toFixed(5) : '—';
+  return Number.isFinite(score) ? score.toFixed(5) : '·';
 }
 
 function authorNames(authors) {
@@ -767,7 +771,7 @@ function renderInnovationPaths(paths, relatedPapers) {
       const grounding = element('div', { className: 'grounding-references' });
       grounding.append(element('span', { className: 'grounding-label', text: t('report.groundedIn') }));
       for (const reference of references) {
-        const text = `${reference.authorYearLabel ?? t('report.conferencePaper')} — ${reference.title ?? t('report.untitled')}`;
+        const text = `${reference.authorYearLabel ?? t('report.conferencePaper')} · ${reference.title ?? t('report.untitled')}`;
         const wrapper = element('span', {
           className: 'grounding-reference-wrap',
           attributes: {
@@ -1086,8 +1090,10 @@ authUi = initAuthUi({
     authState = state;
     renderAccountOverview();
     if (state.status === 'authenticated') void billingActions?.refresh();
-    accountEntry.dataset.authState = state.status;
-    accountEntry.textContent = t(state.status === 'authenticated' ? 'nav.account' : 'nav.signIn');
+    for (const entry of accountEntries) {
+      entry.dataset.authState = state.status;
+      entry.textContent = t(state.status === 'authenticated' ? 'nav.account' : 'nav.signIn');
+    }
     if (cacheTransition.userChanged) {
       savedPaperItems = [];
       savedPaperController = buildSavedPaperController(state.user?.id ?? null);
@@ -1260,6 +1266,9 @@ initWorkspaceNavigation({
     queueMicrotask(() => requestAccountAction(intent, '', trigger));
   },
 });
+mobileAccountEntry?.addEventListener('click', (event) => {
+  requestAccountAction('sign-in', '', event.currentTarget);
+});
 savedPapersFilter.addEventListener('input', renderSavedLibrary);
 saveAnalysisButton.addEventListener('click', (event) => {
   event.currentTarget.focus();
@@ -1269,3 +1278,5 @@ renderUiState();
 updateCharacterCount();
 loadCorpusStatus();
 refreshConferenceLibrary();
+const disposePremiumMotion = initPremiumMotion();
+window.addEventListener('pagehide', disposePremiumMotion, { once: true });

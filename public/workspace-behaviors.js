@@ -1,5 +1,5 @@
 const asArray = (value) => Array.isArray(value) ? value : [];
-const formatCount = (value) => Number.isFinite(Number(value)) ? Number(value).toLocaleString('en-US') : '—';
+const formatCount = (value) => Number.isFinite(Number(value)) ? Number(value).toLocaleString('en-US') : '·';
 
 export function scrollBehaviorForMotionPreference(prefersReducedMotion) {
   return prefersReducedMotion ? 'auto' : 'smooth';

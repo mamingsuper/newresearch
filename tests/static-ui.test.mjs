@@ -26,7 +26,7 @@ test('workbench HTML exposes the required accessible landmarks and Pages-safe as
   assert.match(html, /currently indexed|corpus/i);
   assert.match(html, /href="\.\/styles\.css\?v=[^"]+"/i);
   assert.match(html, /href="\.\/results-v2\.css\?v=[^"]+"/i);
-  assert.match(html, /src="\.\/config\.js"/i);
+  assert.match(html, /src="\.\/config\.js(?:\?v=[^"]+)?"/i);
   assert.match(html, /type="module"[^>]+src="\.\/app\.js\?v=[^"]+"/i);
   assert.doesNotMatch(html, /(?:href|src)="\/(?:styles\.css|results-v2\.css|app\.js|config\.js)"/i);
 });

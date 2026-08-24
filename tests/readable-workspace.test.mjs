@@ -112,8 +112,9 @@ test('workspace shell exposes focused navigation, responsive controls, and accou
   for (const label of ['New analysis', 'Conference library', 'Saved papers', 'Conversations', 'Submit a program']) {
     assert.match(html, new RegExp(label, 'i'));
   }
-  assert.match(css, /\.workspace-shell\s*\{[\s\S]*display:\s*grid[\s\S]*grid-template-columns:/i);
-  assert.match(css, /@media\s*\(max-width:\s*899px\)[\s\S]*\.workspace-shell\s*\{[\s\S]*display:\s*block[\s\S]*\.workspace-sidebar\s*\{[\s\S]*transform:\s*translateX\(-105%\)[\s\S]*\.workspace-sidebar\[data-open="true"\]\s*\{[\s\S]*transform:\s*translateX\(0\)/i);
+  assert.match(css, /\.workspace-shell\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*var\(--sidebar-width\)\s+minmax\(0,\s*1fr\)/i);
+  assert.match(css, /\.workspace-sidebar\s*\{[^}]*position:\s*sticky;[^}]*height:\s*100dvh;[^}]*border-right:/i);
+  assert.match(css, /@media\s*\(max-width:\s*1199px\)[\s\S]*\.workspace-sidebar\s*\{[\s\S]*transform:\s*translateX\(-105%\)[\s\S]*\.workspace-sidebar\[data-open="true"\]\s*\{[\s\S]*transform:\s*translateX\(0\)[\s\S]*\.mobile-workspace-header\s*\{[\s\S]*display:\s*flex/i);
   assert.match(css, /\.workspace-sidebar\s*\{[^}]*overflow-y:\s*auto/i);
 });
 

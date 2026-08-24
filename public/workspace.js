@@ -30,7 +30,7 @@ export function createWorkspaceUiState() {
 export function initWorkspaceNavigation({ sidebar, menuButton, authIntentHandler, mobileQuery } = {}) {
   if (!sidebar || !menuButton) return { close() {}, setOpen() {} };
 
-  const mediaQuery = mobileQuery ?? globalThis.window?.matchMedia?.('(max-width: 899px)') ?? { matches: false };
+  const mediaQuery = mobileQuery ?? globalThis.window?.matchMedia?.('(max-width: 1199px)') ?? { matches: false };
   let open = false;
   const firstNavigationControl = () => sidebar.querySelector?.(
     'nav a[href], nav button:not([disabled]), .account-entry:not([disabled]), select:not([disabled])',

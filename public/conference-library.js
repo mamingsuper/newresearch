@@ -51,7 +51,7 @@ export function renderConferencePrograms({ root, programs = [], t = (key) => key
   if (!programs.length) fragment.append(node(document, 'p', t('conference.empty'), 'empty-state'));
   for (const program of programs) {
     const card = node(document, 'article', undefined, 'conference-card');
-    card.append(node(document, 'p', `${program.acronym || program.name} · ${program.year ?? '—'} · ${program.discipline}`, 'conference-meta'));
+    card.append(node(document, 'p', `${program.acronym || program.name} · ${program.year ?? '·'} · ${program.discipline}`, 'conference-meta'));
     card.append(node(document, 'h3', program.name || t('conference.untitled')));
     card.append(node(document, 'p', t(`conference.coverage.${program.coverageStatus}`), 'conference-coverage'));
     card.append(node(document, 'p', t('conference.paperCount', { count: program.paperCount })));
