@@ -37,6 +37,14 @@ test('browser renderer avoids unsafe HTML interpolation', async () => {
   assert.match(i18n, /'report\.originalProgram': 'Original program ↗'/);
 });
 
+test('locale changes rerender asynchronous conference-library copy', async () => {
+  const script = await readFile(path.join(publicDir, 'app.js'), 'utf8');
+
+  assert.match(script, /function\s+renderConferenceLibraryState\s*\(/);
+  assert.match(script, /function\s+setLocale[\s\S]*renderConferenceLibraryState\(\)/);
+  assert.match(script, /conferenceLibraryState\s*=\s*\{\s*programs,\s*statusKey:\s*'conference\.loaded'/);
+});
+
 test('analysis failures map service responses to closed dictionary keys', async () => {
   const script = await readFile(path.join(publicDir, 'app.js'), 'utf8');
 

@@ -87,6 +87,7 @@ let conversationStore;
 let conversationItems = [];
 let programSubmissionUi;
 let adminSubmissionController;
+let conferenceLibraryState = null;
 const privateCacheGuard = createPrivateCacheGuard();
 
 const configuredApiBase = window.__IDEA_RADAR_CONFIG__?.apiBaseUrl?.trim();
@@ -120,6 +121,7 @@ function setLocale(locale) {
   if (latestReport) renderReport(latestReport, { scroll: false, saved: latestReportSaved });
   if (!savedPapersSection.hidden) renderSavedLibrary();
   if (!conversationsSection.hidden) renderConversations();
+  renderConferenceLibraryState();
   updatePaperActionButtons();
 }
 
@@ -944,14 +946,25 @@ savedPaperStore = createSavedPaperStore({
 });
 async function refreshConferenceLibrary() {
   if (!conferenceLibraryRoot) return;
-  conferenceLibraryStatus.textContent = t('conference.loading');
+  conferenceLibraryState = { programs: [], statusKey: 'conference.loading', params: {} };
+  renderConferenceLibraryState();
   try {
     const programs = await loadConferencePrograms({ supabase: browserSupabase });
-    renderConferencePrograms({ root: conferenceLibraryRoot, programs, t: (key, params) => t(key, params) });
-    conferenceLibraryStatus.textContent = t('conference.loaded', { count: programs.length });
+    conferenceLibraryState = { programs, statusKey: 'conference.loaded', params: { count: programs.length } };
   } catch {
-    conferenceLibraryStatus.textContent = t('conference.error');
+    conferenceLibraryState = { programs: [], statusKey: 'conference.error', params: {} };
   }
+  renderConferenceLibraryState();
+}
+
+function renderConferenceLibraryState() {
+  if (!conferenceLibraryRoot || !conferenceLibraryStatus || !conferenceLibraryState) return;
+  renderConferencePrograms({
+    root: conferenceLibraryRoot,
+    programs: conferenceLibraryState.programs,
+    t: (key, params) => t(key, params),
+  });
+  conferenceLibraryStatus.textContent = t(conferenceLibraryState.statusKey, conferenceLibraryState.params);
 }
 
 async function refreshAdminSubmissions() {
