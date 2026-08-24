@@ -79,6 +79,8 @@ class FakeElement {
 function fakeDialog() {
   const elements = Object.fromEntries([
     'auth-form', 'auth-email', 'auth-email-submit', 'auth-google', 'auth-github',
+    'auth-google-label', 'auth-github-label',
+    'auth-provider-divider', 'auth-provider-actions',
     'auth-cancel', 'auth-sign-out', 'auth-status', 'auth-anonymous-controls',
     'auth-authenticated-controls',
   ].map((id) => [`#${id}`, new FakeElement()]));
@@ -131,6 +133,25 @@ test('client uses persistent browser Auth options and exact safe redirects', asy
     provider: 'github',
     options: { redirectTo },
   });
+});
+
+test('client reads enabled OAuth providers from public Auth settings without bearer credentials', async () => {
+  const requests = [];
+  const client = createAuthClient({
+    sdk: fakeSdk([]),
+    url: 'https://p.supabase.co',
+    publishableKey: 'sb_publishable_test',
+    storage: memoryStorage(),
+    async fetchImpl(url, options) {
+      requests.push({ url, options });
+      return { ok: true, async json() { return { external: { google: true, github: false } }; } };
+    },
+  });
+
+  assert.deepEqual(await client.getProviderAvailability(), { google: true, github: false });
+  assert.equal(requests[0].url, 'https://p.supabase.co/auth/v1/settings');
+  assert.deepEqual(requests[0].options.headers, { apikey: 'sb_publishable_test' });
+  assert.equal(requests[0].options.headers.Authorization, undefined);
 });
 
 test('invalid email and provider are rejected before an SDK call', async () => {
@@ -493,7 +514,7 @@ test('protected action routes through Auth storage and restores exactly once', a
 test('Auth dialog copy is complete in the closed English and Chinese dictionaries', () => {
   const keys = [
     'auth.eyebrow', 'auth.title', 'auth.copy', 'auth.email', 'auth.emailSubmit', 'auth.or',
-    'auth.google', 'auth.github', 'auth.authenticated', 'auth.signOut', 'auth.cancel',
+    'auth.google', 'auth.googleUnavailable', 'auth.github', 'auth.authenticated', 'auth.signOut', 'auth.cancel',
     'auth.unavailableShort', 'auth.status.sending', 'auth.status.emailSent',
     'auth.status.redirecting', 'auth.status.signedOut', 'auth.error.email',
     'auth.error.emailSend', 'auth.error.provider', 'auth.error.signOut', 'auth.error.session',
@@ -512,6 +533,44 @@ test('sign-in UI uses a native labelled dialog with an announced status region',
   assert.match(html, /id="auth-email"[^>]*type="email"[^>]*autocomplete="email"/i);
   assert.match(html, /id="auth-status"[^>]*role="status"[^>]*aria-live="polite"/i);
   assert.match(html, /id="auth-cancel"[^>]*type="button"/i);
+  assert.match(html, /id="auth-google"[\s\S]*auth-provider-icon[\s\S]*id="auth-google-label"/i);
+});
+
+test('sign-in UI exposes only OAuth providers enabled by Supabase', async () => {
+  const { dialog, elements } = fakeDialog();
+  const authClient = {
+    enabled: true,
+    rememberIntent() {}, consumeIntent() { return null; },
+    async getProviderAvailability() { return { google: true, github: false }; },
+    async getSession() { return { status: 'anonymous', user: null }; },
+    onAuthStateChange() { return { unsubscribe() {} }; },
+  };
+  const ui = initAuthUi({ authClient, dialog, redirectTo: 'https://example.org/' });
+  await ui.whenIdle();
+
+  assert.equal(elements['#auth-google'].hidden, false);
+  assert.equal(elements['#auth-google'].disabled, false);
+  assert.equal(elements['#auth-github'].hidden, true);
+  assert.equal(elements['#auth-provider-divider'].hidden, false);
+  assert.equal(elements['#auth-provider-actions'].hidden, false);
+});
+
+test('disabled Google OAuth remains visibly branded without allowing a failing request', async () => {
+  const { dialog, elements } = fakeDialog();
+  const authClient = {
+    enabled: true,
+    rememberIntent() {}, consumeIntent() { return null; },
+    async getProviderAvailability() { return { google: false, github: false }; },
+    async getSession() { return { status: 'anonymous', user: null }; },
+    onAuthStateChange() { return { unsubscribe() {} }; },
+  };
+  const ui = initAuthUi({ authClient, dialog, redirectTo: 'https://example.org/', t: (key) => `localized:${key}` });
+  await ui.whenIdle();
+
+  assert.equal(elements['#auth-google'].hidden, false);
+  assert.equal(elements['#auth-google'].disabled, true);
+  assert.equal(elements['#auth-google-label'].textContent, 'localized:auth.googleUnavailable');
+  assert.equal(elements['#auth-github'].hidden, true);
 });
 
 test('provider failure is localized and keeps email available', async () => {

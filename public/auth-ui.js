@@ -18,7 +18,11 @@ export function initAuthUi({
   const email = requiredElement(dialog, '#auth-email');
   const emailSubmit = requiredElement(dialog, '#auth-email-submit');
   const google = requiredElement(dialog, '#auth-google');
+  const googleLabel = requiredElement(dialog, '#auth-google-label');
   const github = requiredElement(dialog, '#auth-github');
+  const githubLabel = requiredElement(dialog, '#auth-github-label');
+  const providerDivider = requiredElement(dialog, '#auth-provider-divider');
+  const providerActions = requiredElement(dialog, '#auth-provider-actions');
   const cancel = requiredElement(dialog, '#auth-cancel');
   const signOut = requiredElement(dialog, '#auth-sign-out');
   const status = requiredElement(dialog, '#auth-status');
@@ -31,7 +35,9 @@ export function initAuthUi({
   let statusKey = '';
   let sessionQueue = Promise.resolve();
   let initialSessionPromise;
+  let providerAvailabilityPromise;
   let successfulCleanupPending = false;
+  let providerAvailability = { google: false, github: false };
 
   function setStatus(key) {
     statusKey = key;
@@ -41,8 +47,8 @@ export function initAuthUi({
   function setBusy(busy) {
     email.disabled = busy;
     emailSubmit.disabled = busy;
-    google.disabled = busy;
-    github.disabled = busy;
+    google.disabled = busy || !providerAvailability.google;
+    github.disabled = busy || !providerAvailability.github;
     signOut.disabled = busy;
   }
 
@@ -52,6 +58,18 @@ export function initAuthUi({
     anonymousControls.hidden = authenticated;
     authenticatedControls.hidden = !authenticated;
     onSessionChange(nextState);
+  }
+
+  function renderProviderAvailability(availability = {}) {
+    providerAvailability = { google: availability.google === true, github: availability.github === true };
+    google.hidden = false;
+    google.disabled = !providerAvailability.google;
+    googleLabel.textContent = t(providerAvailability.google ? 'auth.google' : 'auth.googleUnavailable');
+    github.hidden = !providerAvailability.github;
+    github.disabled = !providerAvailability.github;
+    githubLabel.textContent = t('auth.github');
+    providerDivider.hidden = false;
+    providerActions.hidden = false;
   }
 
   function restoreFocus() {
@@ -155,6 +173,12 @@ export function initAuthUi({
     authRevision += 1;
     void enqueueSession(state, authRevision);
   });
+  renderProviderAvailability();
+  providerAvailabilityPromise = (typeof authClient.getProviderAvailability === 'function'
+    ? authClient.getProviderAvailability()
+    : Promise.resolve({ google: true, github: true }))
+    .then(renderProviderAvailability)
+    .catch(() => renderProviderAvailability());
   const initialRevision = authRevision;
   initialSessionPromise = authClient.getSession()
     .then((state) => {
@@ -189,8 +213,12 @@ export function initAuthUi({
       return true;
     },
     state() { return latestState; },
-    refresh() { setStatus(statusKey); },
+    refresh() {
+      setStatus(statusKey);
+      renderProviderAvailability(providerAvailability);
+    },
     async whenIdle() {
+      await providerAvailabilityPromise;
       await initialSessionPromise;
       while (true) {
         const pending = sessionQueue;

@@ -73,7 +73,10 @@ a { color: inherit; }
 #auth-email-submit { justify-content: center; }
 .auth-divider { margin: 1rem 0; color: var(--muted); text-align: center; }
 .auth-provider-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.auth-provider-actions[hidden], .auth-divider[hidden], .auth-provider-button[hidden] { display: none; }
 .auth-provider-actions button, #auth-sign-out, .auth-cancel { min-height: 2.75rem; padding: .65rem .85rem; border: 1px solid var(--ink); border-radius: 6px; color: var(--ink); background: var(--surface); cursor: pointer; font-weight: 800; }
+.auth-provider-button { display: inline-flex; align-items: center; justify-content: center; gap: .65rem; }
+.auth-provider-icon { flex: 0 0 auto; width: 1.35rem; height: 1.35rem; }
 #auth-authenticated-controls { padding: 1rem; border: 1px solid var(--ink); background: var(--mint); }
 #auth-authenticated-controls p { margin-top: 0; }
 .auth-dialog-status { min-height: 1.65em; margin: 0; color: var(--muted); font-size: var(--font-control); }
