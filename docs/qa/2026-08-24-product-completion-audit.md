@@ -4,11 +4,11 @@
 
 | Gate | Result | Evidence |
 | --- | --- | --- |
-| Unit/integration contracts | PASS | 207 tests passed; 0 failed; 0 skipped |
+| Unit/integration contracts | PASS | 208 tests passed; 0 failed; 0 skipped |
 | Syntax validation | PASS | 107 JavaScript modules checked |
 | Application build | PASS | production build completed |
 | GitHub Pages build | PASS | 22-file artifact completed with secret scan |
-| Page-weight budget | PASS | JavaScript 97,608 bytes gzip; CSS 6,916 bytes gzip |
+| Page-weight budget | PASS | JavaScript 97,705 bytes gzip; CSS 6,916 bytes gzip |
 | Bilingual contract | PASS | English and Chinese key parity tested |
 | Accessibility contracts | PASS | focus-visible, drawer focus, reduced motion, contrast, and responsive behavior covered |
 
@@ -19,6 +19,7 @@
 - Legacy gateway JWT verification is disabled for these functions because each endpoint performs explicit current-user validation; unauthenticated smoke requests returned `401`, with the method-specific export route returning `405` to POST.
 - The existing production corpus remains 8,906 papers with complete 512-dimensional `text-embedding-3-small` vectors and no pending or failed jobs before new moderated imports.
 - The public Supabase publishable key is configured as the GitHub Actions variable `SUPABASE_PUBLISHABLE_KEY`; no secret or service-role key is shipped to Pages.
+- Live English/Chinese browser acceptance found and corrected one stale asynchronous conference-library translation; the locale-change regression is now executable.
 
 ## Remaining operational boundary
 
