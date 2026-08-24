@@ -74,7 +74,7 @@ function normalizeIntent(value, now) {
   };
 }
 
-export function createAuthClient({ sdk, url, publishableKey, storage, now = Date.now } = {}) {
+export function createAuthClient({ sdk, url, publishableKey, storage, now = Date.now, fetchImpl = globalThis.fetch } = {}) {
   const intentStorage = safeStorage(storage);
   let enabled = typeof sdk?.createClient === 'function'
     && isSupabaseUrl(url)
@@ -144,6 +144,25 @@ export function createAuthClient({ sdk, url, publishableKey, storage, now = Date
     getSupabaseClient() { return enabled ? client : null; },
     rememberIntent,
     consumeIntent,
+    async getProviderAvailability() {
+      requireEnabled();
+      if (typeof fetchImpl !== 'function') throw authError('provider_settings_failed');
+      let response;
+      try {
+        response = await fetchImpl(`${url.replace(/\/$/, '')}/auth/v1/settings`, {
+          headers: { apikey: publishableKey },
+        });
+      } catch {
+        throw authError('provider_settings_failed');
+      }
+      if (!response?.ok) throw authError('provider_settings_failed');
+      let settings;
+      try { settings = await response.json(); } catch { throw authError('provider_settings_failed'); }
+      return Object.freeze({
+        google: settings?.external?.google === true,
+        github: settings?.external?.github === true,
+      });
+    },
     async signInWithEmail(email, { redirectTo } = {}) {
       requireEnabled();
       const normalizedEmail = typeof email === 'string' ? email.trim() : '';
