@@ -189,10 +189,39 @@
         <p><strong data-i18n="privacy.scope">Scope:</strong> <span data-i18n="privacy.scopeCopy">No global novelty claims. Conclusions are limited to the currently indexed corpus.</span></p>
       </section>
 
-      <section class="workspace-preview shell" id="submit-program" aria-labelledby="submit-program-title">
-        <p class="eyebrow" data-i18n="preview.comingNext">Coming next</p>
-        <h2 id="submit-program-title" data-i18n="preview.submitTitle">Submit a program</h2>
-        <p data-i18n="preview.submitCopy">Program submission will be available in a later stage. This preview does not collect or save submissions.</p>
+      <section class="program-submission-shell shell" id="submit-program" aria-labelledby="submit-program-title">
+        <p class="eyebrow" data-i18n="program.eyebrow">Community corpus</p>
+        <h2 id="submit-program-title" data-i18n="program.title">Submit a conference program</h2>
+        <p class="program-intro" data-i18n="program.copy">Share an official HTTPS link or upload a supported program for administrator review.</p>
+        <form id="program-submission-form" novalidate>
+          <div class="program-grid">
+            <label><span data-i18n="program.conferenceName">Conference name</span><input name="conferenceName" maxlength="200" required /><small data-program-error-for="conferenceName" hidden></small></label>
+            <label><span data-i18n="program.acronym">Acronym</span><input name="acronym" maxlength="32" required /><small data-program-error-for="acronym" hidden></small></label>
+            <label><span data-i18n="program.year">Year</span><input name="year" type="number" min="1900" max="2100" required /><small data-program-error-for="year" hidden></small></label>
+            <label><span data-i18n="program.discipline">Discipline</span><input name="discipline" maxlength="100" required /><small data-program-error-for="discipline" hidden></small></label>
+          </div>
+          <label><span data-i18n="program.officialUrl">Official conference URL</span><input name="officialConferenceUrl" type="url" maxlength="2048" placeholder="https://…" required /><small data-program-error-for="officialConferenceUrl" hidden></small></label>
+          <div class="program-tabs" role="tablist" aria-label="Program source" data-i18n-aria-label="program.sourceLabel">
+            <button type="button" role="tab" data-program-kind="url" aria-selected="true" data-i18n="program.kind.url">Official link</button>
+            <button type="button" role="tab" data-program-kind="file" aria-selected="false" data-i18n="program.kind.file">Upload file</button>
+          </div>
+          <div data-program-panel="url" role="tabpanel">
+            <label><span data-i18n="program.programUrl">Program URL</span><input name="programUrl" type="url" maxlength="2048" placeholder="https://…" required /><small data-program-error-for="programUrl" hidden></small></label>
+          </div>
+          <div data-program-panel="file" role="tabpanel" hidden>
+            <label><span data-i18n="program.file">PDF, CSV, JSON, or ZIP (max 25 MiB)</span><input name="programFile" type="file" accept=".pdf,.csv,.json,.zip,application/pdf,text/csv,application/json,application/zip" /><small data-program-error-for="file" hidden></small></label>
+          </div>
+          <label><span data-i18n="program.notes">Notes for reviewers</span><textarea name="notes" maxlength="4000"></textarea><small data-program-error-for="notes" hidden></small></label>
+          <label class="program-rights" for="program-rights"><input id="program-rights" name="rightsAttested" type="checkbox" /><span data-i18n="program.rights">I confirm I may submit this program for review and provenance linking.</span></label>
+          <small data-program-error-for="rightsAttested" hidden></small>
+          <progress id="program-upload-progress" max="100" value="0" hidden></progress>
+          <p id="program-submission-status" role="status" aria-live="polite"></p>
+          <div class="program-actions">
+            <button class="primary-button" id="program-submit-button" type="submit" data-i18n="program.submit">Submit for review</button>
+            <button id="program-retry-button" type="button" data-i18n="program.retry" hidden>Retry</button>
+            <button id="program-cleanup-button" type="button" data-i18n="program.cleanup" hidden>Remove uploaded file</button>
+          </div>
+        </form>
       </section>
         </main>
 

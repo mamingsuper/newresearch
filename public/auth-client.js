@@ -6,6 +6,7 @@ const INTENT_ACTIONS = new Set([
   'conversations',
   'save-paper',
   'save-analysis',
+  'submit-program',
   'history',
   'export',
 ]);

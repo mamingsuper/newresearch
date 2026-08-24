@@ -9,6 +9,7 @@ import { createOptimisticSavedPaperController, createSavedPaperStore, renderSave
 import { createConversationStore, renderConversationList } from './conversations.js';
 import { downloadExport, exportConversation, exportPapers } from './exports.js';
 import { createPrivateCacheGuard } from './private-cache-guard.js';
+import { createProgramSubmissionController, initProgramSubmissionUi } from './program-submission.js';
 
 const LOCALE_STORAGE_KEY = 'idea-radar-locale';
 const readLocale = () => {
@@ -46,6 +47,7 @@ const conversationsRoot = document.querySelector('#conversations-root');
 const conversationsStatus = document.querySelector('#conversations-status');
 const saveAnalysisButton = document.querySelector('#save-analysis-button');
 const saveAnalysisStatus = document.querySelector('#save-analysis-status');
+const programSubmissionForm = document.querySelector('#program-submission-form');
 
 const PROGRESS_STAGES = [
   { target: 5, key: 'progress.stage.understanding' },
@@ -73,6 +75,7 @@ let savedPaperStore;
 let savedPaperItems = [];
 let conversationStore;
 let conversationItems = [];
+let programSubmissionUi;
 const privateCacheGuard = createPrivateCacheGuard();
 
 const configuredApiBase = window.__IDEA_RADAR_CONFIG__?.apiBaseUrl?.trim();
@@ -153,7 +156,7 @@ function requestAccountAction(action, entityId = '', trigger = document.activeEl
 
 async function restoreAuthenticatedIntent(intent) {
   await executeAuthenticatedIntent(intent);
-  if (!['saved-papers', 'conversations'].includes(intent.action) && intent.returnHash) window.location.hash = intent.returnHash;
+  if (!['saved-papers', 'conversations', 'submit-program'].includes(intent.action) && intent.returnHash) window.location.hash = intent.returnHash;
   let target = null;
   if (intent.action === 'save-paper' && intent.entityId) {
     const card = [...document.querySelectorAll('[data-paper-id]')]
@@ -419,6 +422,11 @@ async function executeAuthenticatedIntent(intent = {}) {
   if (intent.action === 'save-analysis') return saveLatestAnalysis();
   if (intent.action === 'conversations') {
     await loadConversations();
+    return true;
+  }
+  if (intent.action === 'submit-program') {
+    window.location.hash = '#submit-program';
+    programSubmissionUi?.focus();
     return true;
   }
   if (intent.action === 'export') {
@@ -914,6 +922,11 @@ const authClient = createAuthClient({
   storage: authStorage,
 });
 const browserSupabase = authClient.getSupabaseClient();
+async function currentAccessToken() {
+  const result = await browserSupabase?.auth?.getSession?.();
+  if (result?.error) return null;
+  return result?.data?.session?.access_token ?? null;
+}
 savedPaperStore = createSavedPaperStore({
   supabase: browserSupabase,
   getUserId: () => authState.user?.id ?? null,
@@ -921,11 +934,7 @@ savedPaperStore = createSavedPaperStore({
 conversationStore = createConversationStore({
   fetchImpl: window.fetch.bind(window),
   endpoint: apiEndpoint('save-analysis', '/api/save-analysis'),
-  async getAccessToken() {
-    const result = await browserSupabase?.auth?.getSession?.();
-    if (result?.error) return null;
-    return result?.data?.session?.access_token ?? null;
-  },
+  getAccessToken: currentAccessToken,
   randomUUID: () => window.crypto.randomUUID(),
   supabase: browserSupabase,
   getUserId: () => authState.user?.id ?? null,
@@ -979,6 +988,47 @@ authActionRouter = createAuthActionRouter({
     renderUiState();
   },
 });
+if (programSubmissionForm) {
+  const programController = createProgramSubmissionController({
+    auth: { getUserId: () => authState.user?.id ?? null, getAccessToken: currentAccessToken },
+    storage: {
+      async upload({ path, file, mimeType, onProgress }) {
+        if (!browserSupabase) throw new Error('storage_unavailable');
+        const { error } = await browserSupabase.storage.from('program-submissions').upload(path, file, {
+          contentType: mimeType,
+          upsert: false,
+        });
+        if (error) throw error;
+        onProgress?.(100);
+      },
+      async remove(path) {
+        if (!browserSupabase) throw new Error('storage_unavailable');
+        const { error } = await browserSupabase.storage.from('program-submissions').remove([path]);
+        if (error) throw error;
+      },
+    },
+    api: {
+      async submit(payload, { accessToken }) {
+        const response = await fetch(apiEndpoint('submit-program', '/api/submit-program'), {
+          method: 'POST',
+          headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body?.error?.code ?? 'submit_failed');
+        return body.data;
+      },
+    },
+    draftStorage: authStorage,
+  });
+  programSubmissionUi = initProgramSubmissionUi({
+    form: programSubmissionForm,
+    controller: programController,
+    getAuthState: () => authState,
+    onRequireAuth: (trigger) => requestAccountAction('submit-program', '', trigger),
+    t: (key, params) => t(key, params),
+  });
+}
 initPublicAnalysisForm({
   form,
   readIdea: () => ideaInput.value,
