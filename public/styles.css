@@ -221,6 +221,7 @@ blockquote { margin: 18px 0; padding: 14px 16px; border-left: 4px solid var(--ye
 .account-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin: 1rem 0; }
 .danger-button { border-color: #8b1e1e !important; color: #8b1e1e !important; }
 table th, table td { font-size: var(--font-control); }
+:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
 
 @media (max-width: 820px) {
   .shell { width: min(100% - 32px, 1500px); }

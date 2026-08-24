@@ -183,3 +183,7 @@ export function createTranslator({ locale = 'en' } = {}) {
     },
   };
 }
+
+export function dictionariesForTest() {
+  return { en: { ...messages.en }, zh: { ...messages.zh } };
+}
