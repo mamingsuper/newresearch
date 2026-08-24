@@ -1,11 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { readFile, readdir } from 'node:fs/promises';
+import { promisify } from 'node:util';
 
 const root = new URL('../', import.meta.url);
+const execFileAsync = promisify(execFile);
 
 async function text(path) {
   return readFile(new URL(path, root), 'utf8');
+}
+
+function buildEnv(publishableKey) {
+  return {
+    ...process.env,
+    PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishableKey,
+  };
 }
 
 test('public runtime config contains only the public Edge API base URL', async () => {
@@ -17,17 +27,60 @@ test('public runtime config contains only the public Edge API base URL', async (
 });
 
 test('Pages builder emits a subpath-safe static artifact and scans for secrets', async () => {
-  const [builder, pkg] = await Promise.all([
+  const [builder, packageSource] = await Promise.all([
     text('scripts/build-pages.mjs'),
     text('package.json'),
   ]);
+  const pkg = JSON.parse(packageSource);
 
-  assert.match(pkg, /"pages:build"\s*:\s*"node scripts\/build-pages\.mjs"/);
+  assert.equal(pkg.scripts['pages:build'], 'npm run browser:vendor && node scripts/build-pages.mjs');
   assert.match(builder, /pages-dist/);
   assert.match(builder, /public/);
   assert.match(builder, /\.nojekyll/);
   assert.match(builder, /root-absolute|absolute asset|href=|src=/i);
   assert.match(builder, /OPENAI_API_KEY|sb_secret_|SERVICE_ROLE|RATE_LIMIT_HMAC_KEY/i);
+});
+
+test('Pages builder reports the actual artifact file count', async () => {
+  const { stdout } = await execFileAsync(process.execPath, ['scripts/build-pages.mjs'], {
+    cwd: new URL('../', import.meta.url),
+    env: buildEnv('sb_publishable_test'),
+  });
+  const result = JSON.parse(stdout.trim());
+  const output = new URL('../pages-dist/', import.meta.url);
+  const walk = async (directory) => {
+    const entries = await readdir(directory, { withFileTypes: true });
+    const nested = await Promise.all(entries.map((entry) => (
+      entry.isDirectory() ? walk(new URL(`${entry.name}/`, directory)) : 1
+    )));
+    return nested.flat(Infinity).reduce((total, count) => total + count, 0);
+  };
+
+  assert.equal(result.files, await walk(output));
+
+  const config = await text('pages-dist/config.js');
+  assert.match(config, /apiBaseUrl:\s*'https:\/\/euptkcjwunpnwiqejtru\.supabase\.co\/functions\/v1'/);
+  assert.match(config, /supabaseUrl:\s*'https:\/\/euptkcjwunpnwiqejtru\.supabase\.co'/);
+  assert.match(config, /supabasePublishableKey:\s*'sb_publishable_test'/);
+  assert.doesNotMatch(config, /__PUBLIC_SUPABASE_PUBLISHABLE_KEY__/);
+  assert.ok(await readFile(new URL('vendor/supabase-2.112.3.js', output)));
+});
+
+test('Pages builder rejects missing and secret-shaped credentials', async () => {
+  await assert.rejects(
+    execFileAsync(process.execPath, ['scripts/build-pages.mjs'], {
+      cwd: root,
+      env: buildEnv(''),
+    }),
+    /PUBLIC_SUPABASE_PUBLISHABLE_KEY/,
+  );
+  await assert.rejects(
+    execFileAsync(process.execPath, ['scripts/build-pages.mjs'], {
+      cwd: root,
+      env: buildEnv('sb_secret_test'),
+    }),
+    /PUBLIC_SUPABASE_PUBLISHABLE_KEY/,
+  );
 });
 
 test('Pages workflow verifies and deploys the pages-dist artifact from main', async () => {
@@ -41,7 +94,9 @@ test('Pages workflow verifies and deploys the pages-dist artifact from main', as
   assert.match(workflow, /npm run check/);
   assert.match(workflow, /npm run build/);
   assert.match(workflow, /npm run pages:build/);
-  assert.match(workflow, /actions\/configure-pages@v5/);
+  assert.match(workflow, /PUBLIC_SUPABASE_PUBLISHABLE_KEY:\s*\$\{\{\s*vars\.SUPABASE_PUBLISHABLE_KEY\s*\}\}/);
+  assert.match(workflow, /npm run pages:budget/);
+  assert.match(workflow, /actions\/configure-pages@v6/);
   assert.match(workflow, /actions\/upload-pages-artifact@v4/);
   assert.match(workflow, /path:\s*pages-dist/i);
   assert.match(workflow, /actions\/deploy-pages@v4/);

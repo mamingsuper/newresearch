@@ -29,10 +29,19 @@ test('workbench HTML exposes the required accessible landmarks and Pages-safe as
 
 test('browser renderer avoids unsafe HTML interpolation', async () => {
   const script = await readFile(path.join(publicDir, 'app.js'), 'utf8');
+  const i18n = await readFile(path.join(publicDir, 'i18n.js'), 'utf8');
 
   assert.doesNotMatch(script, /innerHTML\s*=/);
   assert.match(script, /noopener/);
-  assert.match(script, /Original program/);
+  assert.match(script, /t\('report\.originalProgram'\)/);
+  assert.match(i18n, /'report\.originalProgram': 'Original program ↗'/);
+});
+
+test('analysis failures map service responses to closed dictionary keys', async () => {
+  const script = await readFile(path.join(publicDir, 'app.js'), 'utf8');
+
+  assert.doesNotMatch(script, /payload\.error/);
+  assert.match(script, /showError\('error\.analysis'\)/);
 });
 
 test('server serves the workbench and blocks path traversal', async () => {
@@ -66,6 +75,8 @@ test('idea radar landing page is a centered query-first research workbench', asy
   const html = await readFile(path.join(publicDir, 'index.html'), 'utf8');
   const styles = await readFile(path.join(publicDir, 'styles.css'), 'utf8');
   const script = await readFile(path.join(publicDir, 'app.js'), 'utf8');
+  const analysisForm = await readFile(path.join(publicDir, 'analysis-form.js'), 'utf8');
+  const i18n = await readFile(path.join(publicDir, 'i18n.js'), 'utf8');
 
   assert.match(html, /Scan your research idea against the frontier/i);
   assert.match(html, /APSA 2026/);
@@ -82,27 +93,27 @@ test('idea radar landing page is a centered query-first research workbench', asy
   assert.match(html, /Start Testing/i);
   assert.match(html, /No global novelty claims/i);
 
-  assert.match(styles, /body\s*\{[\s\S]*font-size:\s*16px/i);
+  assert.match(styles, /--font-body:\s*1\.125rem/i);
   assert.match(styles, /\.query-hero\s*\{[\s\S]*max-width:\s*1080px/i);
-  assert.match(styles, /textarea\s*\{[\s\S]*min-height:\s*240px[\s\S]*font-size:\s*1\.125rem/i);
+  assert.match(styles, /textarea\s*\{[\s\S]*min-height:\s*240px[\s\S]*font-size:\s*var\(--font-control\)/i);
 
-  assert.match(script, /Understanding the research question/);
-  assert.match(script, /Reading corpus scope: APSA 2026 \+ ICA 2026/);
-  assert.match(script, /Generating the query embedding/);
-  assert.match(script, /Hybrid vector \+ full-text retrieval/);
-  assert.match(script, /Ranking the most relevant papers/);
-  assert.match(script, /Generating evidence-grounded analysis/);
-  assert.match(script, /Finalizing grounded citations/);
+  for (const key of ['understanding', 'scope', 'embedding', 'retrieval', 'ranking', 'analysis', 'citations']) {
+    assert.match(script, new RegExp(`progress\\.stage\\.${key}`));
+    assert.match(i18n, new RegExp(`'progress\\.stage\\.${key}':`));
+  }
   assert.match(script, /target:\s*90/);
   assert.match(script, /target:\s*94/);
   assert.doesNotMatch(script, /PROGRESS_STAGES[\s\S]*target:\s*100/);
-  assert.match(script, /function\s+completeProgress\s*\(\s*\)[\s\S]*100[\s\S]*Report ready/);
-  assert.match(script, /if\s*\(!response\.ok\)[\s\S]*throw[\s\S]*completeProgress\(\)/);
+  assert.match(script, /function\s+completeProgress\s*\(\s*\)[\s\S]*100[\s\S]*'progress\.ready'/);
+  assert.match(i18n, /'progress\.ready': 'Report ready'/);
+  assert.match(script, /initPublicAnalysisForm/);
+  assert.match(analysisForm, /if\s*\(!response\.ok\)\s*throw/);
+  assert.match(script, /onSuccess\(report\)\s*\{[\s\S]*completeProgress\(\)/);
 
   assert.match(styles, /--paper:\s*#f6f0e4/i);
-  assert.match(styles, /--blue:\s*#2f5bff/i);
+  assert.match(styles, /--blue:\s*#2447d8/i);
   assert.match(styles, /--yellow:\s*#f6bd2f/i);
-  assert.match(styles, /--green:\s*#079c6a/i);
+  assert.match(styles, /--green:\s*#006b4a/i);
   assert.match(styles, /--red:\s*#ff5a3d/i);
   assert.match(styles, /linear-gradient\([^)]*rgba\([^)]*\)[^)]*1px/i);
 
@@ -115,17 +126,26 @@ test('idea radar landing page is a centered query-first research workbench', asy
 
 test('results render canonical ranked papers with full abstracts and readable citations', async () => {
   const script = await readFile(path.join(publicDir, 'app.js'), 'utf8');
+  const i18n = await readFile(path.join(publicDir, 'i18n.js'), 'utf8');
+  const styles = await readFile(path.join(publicDir, 'styles.css'), 'utf8');
   const resultStyles = await readFile(path.join(publicDir, 'results-v2.css'), 'utf8');
 
   assert.match(script, /relatedPapers/);
   assert.match(script, /function\s+renderRelatedPapers/);
   assert.match(script, /authorYearLabel/);
   assert.match(script, /paper\.abstract/);
-  assert.match(script, /relevance score/i);
+  assert.match(script, /t\('report\.relevance'\)/);
+  assert.match(i18n, /'report\.relevance': 'relevance score'/i);
   assert.match(script, /evidenceReferences/);
   assert.match(script, /data-paper-id/);
+  assert.match(script, /paper-meta-row/);
+  assert.match(script, /data-paper-action/);
+  assert.match(script, /data-export-format/);
   assert.doesNotMatch(script, /renderClosestWork\(report\.closestWork\)/);
   assert.doesNotMatch(script, /Grounded in:[^\n]*evidencePaperIds/);
   assert.match(resultStyles, /\.related-paper-list\s*\{[\s\S]*grid-template-columns:\s*1fr/i);
-  assert.match(resultStyles, /\.paper-abstract\s*\{[\s\S]*font-size:\s*1(?:\.0)?rem[\s\S]*line-height:\s*1\.65/i);
+  assert.match(resultStyles, /\.paper-meta-row\s*\{/i);
+  assert.match(styles, /--font-body:\s*1\.125rem/i);
+  assert.match(styles, /@media\s*\(max-width:\s*899px\)[\s\S]*--font-body:\s*1\.0625rem/i);
+  assert.match(resultStyles, /\.paper-abstract\s*\{[\s\S]*font-size:\s*var\(--font-body\)[\s\S]*line-height:\s*1\.7/i);
 });

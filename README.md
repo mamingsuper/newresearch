@@ -131,6 +131,14 @@ Balogh et al. 2026 — The Power of Conversation: An Experiment on AI Informatio
 
 前端不会依赖手工维护的 corpus 数字来判断生产 readiness。
 
+### 7. Private research workspace
+
+用户登录后可以跨设备保存论文、保存带语料快照的分析会话，并导出完整账户数据。所有私有表均启用 RLS；服务端从已验证 JWT 推导用户身份，不接受客户端指定 owner ID。账户删除要求近期登录和明确确认，随后清理私有数据与待处理上传。
+
+### 8. Moderated conference program imports
+
+研究者可以提交官方会议 program URL，或上传 PDF、CSV、JSON、ZIP。提交不会直接进入公开语料：管理员先审核来源，再运行有尺寸、重定向、DNS 与格式边界的安全预览，最终确认后才原子写入论文、provenance 与 embedding queue。公开会议目录只展示已经确认发布的覆盖范围。
+
 ---
 
 ## 当前使用的 AI 模型
@@ -188,10 +196,18 @@ nomic-ai/nomic-embed-text-v1.5
 - TypeScript
 - REST-style JSON API
 
-主要公开 Edge Functions：
+主要 Edge Functions：
 
 - `analyze-idea`
 - `corpus-status`
+- `save-analysis`
+- `submit-program`
+- `review-program`
+- `preview-program-import`
+- `confirm-program-import`
+- `process-embedding-jobs`
+- `export-account`
+- `delete-account`
 
 ### Database & Search
 
@@ -252,6 +268,7 @@ npm run check
 npm run build
     ↓
 npm run pages:build
+npm run pages:budget
     ↓
 GitHub Pages deploy
 ```
@@ -527,6 +544,8 @@ EMBEDDING_BASE_BACKOFF_SECONDS=30
 RATE_LIMIT_HMAC_KEY=...
 ```
 
+GitHub Pages 仅需要 repository Actions variable `SUPABASE_PUBLISHABLE_KEY`。这是浏览器可公开使用的 Supabase publishable key；数据库访问边界仍由 RLS、撤权和 Edge Function 鉴权控制。
+
 **Never commit real secrets to Git.**
 
 Production secrets should be stored in the deployment environment / Supabase Custom Secrets / GitHub Actions Secrets as appropriate。
@@ -590,6 +609,8 @@ supabase/
   migrations/               PostgreSQL schema and migrations
 tests/                      regression / contract / deployment tests
 docs/superpowers/           design specifications and implementation plans
+docs/operations/            production runbooks
+docs/qa/                    verified acceptance evidence
 data/                       reviewed/raw corpus inputs and snapshots
 ```
 

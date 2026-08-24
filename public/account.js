@@ -1,0 +1,5 @@
+export function initAccountActions({exportButton,deleteButton,getAccessToken,endpoint,download,signOut,t=(key)=>key}={}){
+  async function token(){const value=await getAccessToken?.();if(!value)throw new Error('auth_required');return value;}
+  exportButton?.addEventListener('click',async()=>{try{const response=await fetch(`${endpoint}/export-account`,{headers:{authorization:`Bearer ${await token()}`}});if(!response.ok)throw new Error('export');const blob=await response.blob();download(blob,'idea-radar-account-export.json');}catch{window.alert(t('account.exportError'));}});
+  deleteButton?.addEventListener('click',async()=>{const confirmation=window.prompt(t('account.deletePrompt'));if(confirmation!=='DELETE MY ACCOUNT'||!window.confirm(t('account.deleteConfirm')))return;try{const response=await fetch(`${endpoint}/delete-account`,{method:'POST',headers:{authorization:`Bearer ${await token()}`,'content-type':'application/json'},body:JSON.stringify({confirmation})});if(!response.ok)throw new Error('delete');await signOut?.();}catch{window.alert(t('account.deleteError'));}});
+}

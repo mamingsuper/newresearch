@@ -12,53 +12,63 @@
     <link rel="stylesheet" href="./results-v2.css" />
   </head>
   <body>
-    <a class="skip-link" href="#idea-input">Skip to idea testing</a>
+    <a class="skip-link" href="#idea-input" data-i18n="skip.ideaTesting">Skip to idea testing</a>
 
-    <header class="site-header">
-      <div class="shell header-inner">
-        <a class="brand" href="./" aria-label="Idea Radar home">
-          <span class="brand-mark" aria-hidden="true">
-            <span class="radar-ring"></span>
-            <span class="radar-dot radar-dot-blue"></span>
-            <span class="radar-dot radar-dot-red"></span>
-          </span>
-          <span>Idea Radar</span>
-        </a>
-        <nav class="site-nav" aria-label="Primary navigation">
-          <a href="#how-it-works">How it works</a>
-          <a href="#report-section">Evidence</a>
-          <a href="#privacy">Privacy</a>
+    <div class="workspace-shell" id="workspace-shell">
+      <aside class="workspace-sidebar" id="workspace-nav" aria-label="Workspace navigation" data-i18n-aria-label="nav.label">
+        <a class="brand" href="#new-analysis">Idea Radar</a>
+        <nav>
+          <a href="#new-analysis" aria-current="page" data-i18n="nav.newAnalysis">New analysis</a>
+          <a href="#conference-library" data-i18n="nav.conferenceLibrary">Conference library</a>
+          <button type="button" data-auth-intent="saved-papers" data-i18n="nav.savedPapers">Saved papers</button>
+          <button type="button" data-auth-intent="conversations" data-i18n="nav.conversations">Conversations</button>
+          <a href="#submit-program" data-i18n="nav.submitProgram">Submit a program</a>
         </nav>
+        <button class="account-entry" type="button" data-auth-intent="sign-in" data-i18n="nav.signIn">Sign in</button>
+        <label for="locale-selector" class="sr-only" data-i18n="nav.language">Language</label>
+        <select id="locale-selector" aria-label="Language" data-i18n-aria-label="nav.language">
+          <option value="en" data-i18n="nav.english">English</option>
+          <option value="zh" data-i18n="nav.chinese">中文</option>
+        </select>
         <div class="mode-badge" id="mode-badge" aria-live="polite">
           <span class="live-dot" aria-hidden="true"></span>
-          Checking corpus…
+          <span data-i18n="shell.checkingCorpus">Checking corpus…</span>
         </div>
-      </div>
-    </header>
+      </aside>
 
-    <main id="main-content">
-      <section class="query-hero shell" aria-labelledby="hero-title">
+      <div class="workspace-content">
+        <header class="mobile-workspace-header">
+          <a class="brand" href="#new-analysis">Idea Radar</a>
+          <button id="workspace-menu-button" type="button" aria-controls="workspace-nav" aria-expanded="false" data-i18n="nav.menu">Menu</button>
+        </header>
+
+        <div class="workspace-status-region shell">
+          <p id="auth-intent-status" role="status" aria-live="polite" hidden></p>
+        </div>
+
+        <main id="workspace-main">
+      <section class="query-hero shell" id="new-analysis" aria-labelledby="hero-title">
         <div class="query-intro">
-          <p class="eyebrow">Live conference evidence / social science</p>
-          <h1 id="hero-title">Scan your research idea against the frontier</h1>
-          <p class="corpus-ledger" id="corpus-ledger">
+          <p class="eyebrow" data-i18n="hero.eyebrow">Live conference evidence / social science</p>
+          <h1 id="hero-title" data-i18n="hero.title">Scan your research idea against the frontier</h1>
+          <p class="corpus-ledger" id="corpus-ledger" data-i18n="hero.ledger">
             APSA 2026 · 5,493 papers + ICA 2026 · 3,413 papers = 8,906 abstracts
           </p>
-          <p class="hero-copy">
+          <p class="hero-copy" data-i18n="hero.copy">
             Compare your idea with the currently indexed conference corpus, inspect the closest
             papers, and build evidence-linked directions for a stronger research design.
           </p>
         </div>
 
-        <div class="feature-pills" aria-label="Product capabilities">
-          <span class="feature-pill pill-blue">Semantic Search</span>
-          <span class="feature-pill pill-yellow">Hybrid RAG</span>
-          <span class="feature-pill pill-black">8,906 Conference Papers</span>
-          <span class="feature-pill pill-green">Evidence Grounded</span>
+        <div class="feature-pills" aria-label="Product capabilities" data-i18n-aria-label="feature.label">
+          <span class="feature-pill pill-blue" data-i18n="feature.semantic">Semantic Search</span>
+          <span class="feature-pill pill-yellow" data-i18n="feature.rag">Hybrid RAG</span>
+          <span class="feature-pill pill-black" data-i18n="feature.papers">8,906 Conference Papers</span>
+          <span class="feature-pill pill-green" data-i18n="feature.grounded">Evidence Grounded</span>
         </div>
 
         <form class="idea-console" id="analysis-form" novalidate>
-          <label class="sr-only" for="idea-input">Research idea</label>
+          <label class="sr-only" for="idea-input" data-i18n="form.idea">Research idea</label>
           <textarea
             id="idea-input"
             name="idea"
@@ -66,33 +76,33 @@
             maxlength="5000"
             rows="8"
             required
-            placeholder="Describe the research question, population, mechanism, method, and uncertainty you want to investigate…"
+            placeholder="Describe the research question, population, mechanism, method, and uncertainty you want to investigate…" data-i18n-placeholder="form.placeholder"
           ></textarea>
           <div class="console-actions">
-            <button class="text-button" id="example-button" type="button">Try an example</button>
+            <button class="text-button" id="example-button" type="button" data-i18n="form.example">Try an example</button>
             <span id="character-count" aria-live="polite">0 / 5000</span>
             <button class="primary-button" id="submit-button" type="submit">
-              Start Testing <span aria-hidden="true">→</span>
+              <span data-i18n="form.submit">Start Testing</span> <span aria-hidden="true">→</span>
             </button>
           </div>
-          <p class="coverage-copy">
+          <p class="coverage-copy" data-i18n="form.coverage">
             Corpus-scoped evidence only. The radar does not claim that an idea is globally novel.
           </p>
           <div id="form-error" class="error-message" role="alert" hidden></div>
         </form>
 
-        <div class="example-row" aria-label="Example research prompts">
-          <span>Try:</span>
-          <button class="example-chip" type="button" data-example="AI transparency and political trust">AI transparency + trust</button>
-          <button class="example-chip" type="button" data-example="Remote work, social isolation, and productivity among early-career employees">Remote work + well-being</button>
-          <button class="example-chip" type="button" data-example="Generative AI political messages, media literacy, and youth political trust">GenAI + political trust</button>
+        <div class="example-row" aria-label="Example research prompts" data-i18n-aria-label="form.examples">
+          <span data-i18n="form.try">Try:</span>
+          <button class="example-chip" type="button" data-example-key="aiTrust" data-i18n="example.aiTrust">AI transparency + trust</button>
+          <button class="example-chip" type="button" data-example-key="remoteWork" data-i18n="example.remoteWork">Remote work + well-being</button>
+          <button class="example-chip" type="button" data-example-key="genAiTrust" data-i18n="example.genAiTrust">GenAI + political trust</button>
         </div>
 
-        <section class="search-progress" id="search-progress" aria-live="polite" aria-label="Research scan progress" hidden>
+        <section class="search-progress" id="search-progress" aria-live="polite" aria-label="Research scan progress" data-i18n-aria-label="progress.label" hidden>
           <div class="progress-topline">
             <div>
-              <p class="card-kicker">Live corpus scan</p>
-              <h2>Searching APSA 2026 + ICA 2026</h2>
+              <p class="card-kicker" data-i18n="progress.kicker">Live corpus scan</p>
+              <h2 data-i18n="progress.title">Searching APSA 2026 + ICA 2026</h2>
             </div>
             <strong id="progress-percent">0%</strong>
           </div>
@@ -100,12 +110,12 @@
             <span id="progress-bar"></span>
           </div>
           <div class="progress-details">
-            <p id="progress-stage">Preparing scan…</p>
-            <div class="database-chips" aria-label="Databases included in this scan">
-              <span>APSA 2026 · 5,493</span>
-              <span>ICA 2026 · 3,413</span>
-              <span>8,906 abstracts</span>
-              <span>Hybrid vector + full-text</span>
+            <p id="progress-stage" data-i18n="progress.preparing">Preparing scan…</p>
+            <div class="database-chips" aria-label="Databases included in this scan" data-i18n-aria-label="progress.databases">
+              <span data-i18n="progress.apsa">APSA 2026 · 5,493</span>
+              <span data-i18n="progress.ica">ICA 2026 · 3,413</span>
+              <span data-i18n="progress.abstractCount">8,906 abstracts</span>
+              <span data-i18n="progress.hybrid">Hybrid vector + full-text</span>
             </div>
           </div>
         </section>
@@ -113,44 +123,163 @@
 
       <section class="how-it-works shell" id="how-it-works" aria-labelledby="how-title">
         <div class="section-intro">
-          <p class="eyebrow">Three checks, one evidence trail</p>
-          <h2 id="how-title">Fast enough to explore. Careful enough to trust.</h2>
+          <p class="eyebrow" data-i18n="how.eyebrow">Three checks, one evidence trail</p>
+          <h2 id="how-title" data-i18n="how.title">Fast enough to explore. Careful enough to trust.</h2>
         </div>
         <div class="method-grid">
-          <article><span>01</span><h3>Describe</h3><p>State the question, population, mechanism, method, or uncertainty you care about.</p></article>
-          <article><span>02</span><h3>Compare</h3><p>Search APSA 2026 and ICA 2026 with semantic vectors plus full-text retrieval.</p></article>
-          <article><span>03</span><h3>Differentiate</h3><p>Use paper-level evidence to identify credible directions for a stronger design.</p></article>
+          <article><span>01</span><h3 data-i18n="how.describe">Describe</h3><p data-i18n="how.describeCopy">State the question, population, mechanism, method, or uncertainty you care about.</p></article>
+          <article><span>02</span><h3 data-i18n="how.compare">Compare</h3><p data-i18n="how.compareCopy">Search APSA 2026 and ICA 2026 with semantic vectors plus full-text retrieval.</p></article>
+          <article><span>03</span><h3 data-i18n="how.differentiate">Differentiate</h3><p data-i18n="how.differentiateCopy">Use paper-level evidence to identify credible directions for a stronger design.</p></article>
         </div>
       </section>
 
-      <section class="report-shell shell" id="report-section" aria-labelledby="report-title" hidden>
+      <section class="conference-library-shell shell" id="conference-library" aria-labelledby="conference-library-title">
+        <p class="eyebrow" data-i18n="conference.eyebrow">Reviewed provenance</p>
+        <h2 id="conference-library-title" data-i18n="conference.title">Conference program library</h2>
+        <p class="program-intro" data-i18n="conference.copy">Browse published conference programs and their reviewed corpus coverage.</p>
+        <p id="conference-library-status" role="status" aria-live="polite"></p>
+        <div id="conference-library-root"></div>
+      </section>
+
+      <section class="saved-papers-shell shell" id="saved-papers" aria-labelledby="saved-papers-title" hidden>
+        <div class="saved-papers-heading">
+          <div>
+            <p class="eyebrow" data-i18n="saved.eyebrow">Private research library</p>
+            <h2 id="saved-papers-title" data-i18n="saved.title">Saved papers</h2>
+          </div>
+          <label for="saved-papers-filter">
+            <span data-i18n="saved.filterLabel">Filter saved papers</span>
+            <input id="saved-papers-filter" type="search" autocomplete="off" data-i18n-placeholder="saved.filterPlaceholder" placeholder="Title, author, keyword, note…" />
+          </label>
+        </div>
+        <p id="saved-papers-status" role="status" aria-live="polite" hidden></p>
+        <div id="saved-papers-root"></div>
+      </section>
+
+      <section class="conference-library-shell shell" id="admin-submissions" aria-labelledby="admin-submissions-title" hidden>
+        <p class="eyebrow" data-i18n="admin.eyebrow">Administrator</p>
+        <h2 id="admin-submissions-title" data-i18n="admin.title">Program moderation queue</h2>
+        <p id="admin-submissions-status" role="status" aria-live="polite"></p>
+        <div id="admin-submissions-root"></div>
+      </section>
+
+      <section class="conversations-shell shell" id="conversations" aria-labelledby="conversations-title" hidden>
+        <div class="conversations-heading">
+          <div>
+            <p class="eyebrow" data-i18n="conversation.eyebrow">Private research history</p>
+            <h2 id="conversations-title" data-i18n="conversation.title">Conversations</h2>
+          </div>
+          <p data-i18n="conversation.copy">Reopen a saved analysis without running it again.</p>
+        </div>
+        <p id="conversations-status" role="status" aria-live="polite" hidden></p>
+        <div id="conversations-root"></div>
+      </section>
+
+      <section class="report-shell shell" id="report-section" aria-labelledby="report-title" tabindex="-1" hidden>
         <div class="report-heading">
           <div>
-            <p class="eyebrow">Evidence-grounded report</p>
-            <h2 id="report-title">Your research frontier</h2>
+            <p class="eyebrow" data-i18n="report.eyebrow">Evidence-grounded report</p>
+            <h2 id="report-title" data-i18n="report.title">Your research frontier</h2>
           </div>
-          <p class="report-subtitle">Every paper links back to its source. Weak evidence stays weak.</p>
+          <p class="report-subtitle" data-i18n="report.subtitle">Every paper links back to its source. Weak evidence stays weak.</p>
+          <div class="report-save-actions">
+            <button id="save-analysis-button" type="button" data-i18n="conversation.save" hidden>Save to workspace</button>
+            <span id="save-analysis-status" role="status" aria-live="polite"></span>
+          </div>
         </div>
         <div id="report-root" aria-live="polite"></div>
       </section>
 
-      <section class="privacy-strip shell" id="privacy" aria-label="Privacy and scope">
+      <section class="privacy-strip shell" id="privacy" aria-label="Privacy and scope" data-i18n-aria-label="privacy.label">
         <div>
           <span class="privacy-icon" aria-hidden="true">◎</span>
-          <p><strong>Idea privacy:</strong> the application does not intentionally persist your raw idea. Live analysis sends it to the configured model provider with storage disabled where supported.</p>
+          <p><strong data-i18n="privacy.idea">Idea privacy:</strong> <span data-i18n="privacy.ideaCopy">your raw idea is not saved unless you explicitly choose Save to workspace. Live analysis sends it to the configured model provider with storage disabled where supported.</span></p>
         </div>
-        <p><strong>Scope:</strong> No global novelty claims. Conclusions are limited to the currently indexed corpus.</p>
+        <p><strong data-i18n="privacy.scope">Scope:</strong> <span data-i18n="privacy.scopeCopy">No global novelty claims. Conclusions are limited to the currently indexed corpus.</span></p>
       </section>
-    </main>
 
-    <footer class="site-footer">
-      <div class="shell footer-inner">
-        <span>Idea Radar / Research Frontier Radar</span>
-        <span>Evidence first. No global novelty claims.</span>
+      <section class="program-submission-shell shell" id="submit-program" aria-labelledby="submit-program-title">
+        <p class="eyebrow" data-i18n="program.eyebrow">Community corpus</p>
+        <h2 id="submit-program-title" data-i18n="program.title">Submit a conference program</h2>
+        <p class="program-intro" data-i18n="program.copy">Share an official HTTPS link or upload a supported program for administrator review.</p>
+        <form id="program-submission-form" novalidate>
+          <div class="program-grid">
+            <label><span data-i18n="program.conferenceName">Conference name</span><input name="conferenceName" maxlength="200" required /><small data-program-error-for="conferenceName" hidden></small></label>
+            <label><span data-i18n="program.acronym">Acronym</span><input name="acronym" maxlength="32" required /><small data-program-error-for="acronym" hidden></small></label>
+            <label><span data-i18n="program.year">Year</span><input name="year" type="number" min="1900" max="2100" required /><small data-program-error-for="year" hidden></small></label>
+            <label><span data-i18n="program.discipline">Discipline</span><input name="discipline" maxlength="100" required /><small data-program-error-for="discipline" hidden></small></label>
+          </div>
+          <label><span data-i18n="program.officialUrl">Official conference URL</span><input name="officialConferenceUrl" type="url" maxlength="2048" placeholder="https://…" required /><small data-program-error-for="officialConferenceUrl" hidden></small></label>
+          <div class="program-tabs" role="tablist" aria-label="Program source" data-i18n-aria-label="program.sourceLabel">
+            <button type="button" role="tab" data-program-kind="url" aria-selected="true" data-i18n="program.kind.url">Official link</button>
+            <button type="button" role="tab" data-program-kind="file" aria-selected="false" data-i18n="program.kind.file">Upload file</button>
+          </div>
+          <div data-program-panel="url" role="tabpanel">
+            <label><span data-i18n="program.programUrl">Program URL</span><input name="programUrl" type="url" maxlength="2048" placeholder="https://…" required /><small data-program-error-for="programUrl" hidden></small></label>
+          </div>
+          <div data-program-panel="file" role="tabpanel" hidden>
+            <label><span data-i18n="program.file">PDF, CSV, JSON, or ZIP (max 25 MiB)</span><input name="programFile" type="file" accept=".pdf,.csv,.json,.zip,application/pdf,text/csv,application/json,application/zip" /><small data-program-error-for="file" hidden></small></label>
+          </div>
+          <label><span data-i18n="program.notes">Notes for reviewers</span><textarea name="notes" maxlength="4000"></textarea><small data-program-error-for="notes" hidden></small></label>
+          <label class="program-rights" for="program-rights"><input id="program-rights" name="rightsAttested" type="checkbox" /><span data-i18n="program.rights">I confirm I may submit this program for review and provenance linking.</span></label>
+          <small data-program-error-for="rightsAttested" hidden></small>
+          <progress id="program-upload-progress" max="100" value="0" hidden></progress>
+          <p id="program-submission-status" role="status" aria-live="polite"></p>
+          <div class="program-actions">
+            <button class="primary-button" id="program-submit-button" type="submit" data-i18n="program.submit">Submit for review</button>
+            <button id="program-retry-button" type="button" data-i18n="program.retry" hidden>Retry</button>
+            <button id="program-cleanup-button" type="button" data-i18n="program.cleanup" hidden>Remove uploaded file</button>
+          </div>
+        </form>
+      </section>
+        </main>
+
+        <footer class="site-footer">
+          <div class="shell footer-inner">
+            <span data-i18n="footer.product">Idea Radar / Research Frontier Radar</span>
+            <span data-i18n="footer.claim">Evidence first. No global novelty claims.</span>
+          </div>
+        </footer>
       </div>
-    </footer>
+    </div>
+
+    <dialog class="auth-dialog" id="auth-dialog" aria-labelledby="auth-dialog-title">
+      <div class="auth-dialog-card">
+        <div>
+          <p class="eyebrow" data-i18n="auth.eyebrow">Private research workspace</p>
+          <h2 id="auth-dialog-title" data-i18n="auth.title">Sign in to save your work</h2>
+          <p class="auth-dialog-copy" data-i18n="auth.copy">Continue with a secure magic link or an enabled provider. Anonymous idea testing stays available.</p>
+        </div>
+
+        <div id="auth-anonymous-controls">
+          <form id="auth-form" novalidate>
+            <label for="auth-email" data-i18n="auth.email">Email address</label>
+            <input id="auth-email" name="email" type="email" autocomplete="email" maxlength="254" required />
+            <button class="primary-button" id="auth-email-submit" type="submit" data-i18n="auth.emailSubmit">Email me a sign-in link</button>
+          </form>
+          <p class="auth-divider" data-i18n="auth.or">or</p>
+          <div class="auth-provider-actions">
+            <button id="auth-google" type="button" data-i18n="auth.google">Continue with Google</button>
+            <button id="auth-github" type="button" data-i18n="auth.github">Continue with GitHub</button>
+          </div>
+        </div>
+
+        <div id="auth-authenticated-controls" hidden>
+          <p data-i18n="auth.authenticated">You are signed in. Your private workspace is available on this device.</p>
+          <div class="account-actions">
+            <button id="account-export" type="button" data-i18n="account.export">Download my data</button>
+            <button id="account-delete" class="danger-button" type="button" data-i18n="account.delete">Delete account</button>
+          </div>
+          <button id="auth-sign-out" type="button" data-i18n="auth.signOut">Sign out</button>
+        </div>
+
+        <p id="auth-status" class="auth-dialog-status" role="status" aria-live="polite"></p>
+        <button class="auth-cancel" id="auth-cancel" type="button" data-i18n="auth.cancel">Cancel</button>
+      </div>
+    </dialog>
 
     <script src="./config.js"></script>
+    <script src="./vendor/supabase-2.112.3.js"></script>
     <script type="module" src="./app.js"></script>
   </body>
 </html>
