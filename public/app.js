@@ -10,6 +10,8 @@ import { createConversationStore, renderConversationList } from './conversations
 import { downloadExport, exportConversation, exportPapers } from './exports.js';
 import { createPrivateCacheGuard } from './private-cache-guard.js';
 import { createProgramSubmissionController, initProgramSubmissionUi } from './program-submission.js';
+import { loadConferencePrograms, renderConferencePrograms } from './conference-library.js';
+import { createAdminSubmissionController, renderAdminSubmissions } from './admin-submissions.js';
 
 const LOCALE_STORAGE_KEY = 'idea-radar-locale';
 const readLocale = () => {
@@ -48,6 +50,11 @@ const conversationsStatus = document.querySelector('#conversations-status');
 const saveAnalysisButton = document.querySelector('#save-analysis-button');
 const saveAnalysisStatus = document.querySelector('#save-analysis-status');
 const programSubmissionForm = document.querySelector('#program-submission-form');
+const conferenceLibraryRoot = document.querySelector('#conference-library-root');
+const conferenceLibraryStatus = document.querySelector('#conference-library-status');
+const adminSubmissionsSection = document.querySelector('#admin-submissions');
+const adminSubmissionsRoot = document.querySelector('#admin-submissions-root');
+const adminSubmissionsStatus = document.querySelector('#admin-submissions-status');
 
 const PROGRESS_STAGES = [
   { target: 5, key: 'progress.stage.understanding' },
@@ -76,6 +83,7 @@ let savedPaperItems = [];
 let conversationStore;
 let conversationItems = [];
 let programSubmissionUi;
+let adminSubmissionController;
 const privateCacheGuard = createPrivateCacheGuard();
 
 const configuredApiBase = window.__IDEA_RADAR_CONFIG__?.apiBaseUrl?.trim();
@@ -931,6 +939,35 @@ savedPaperStore = createSavedPaperStore({
   supabase: browserSupabase,
   getUserId: () => authState.user?.id ?? null,
 });
+async function refreshConferenceLibrary() {
+  if (!conferenceLibraryRoot) return;
+  conferenceLibraryStatus.textContent = t('conference.loading');
+  try {
+    const programs = await loadConferencePrograms({ supabase: browserSupabase });
+    renderConferencePrograms({ root: conferenceLibraryRoot, programs, t: (key, params) => t(key, params) });
+    conferenceLibraryStatus.textContent = t('conference.loaded', { count: programs.length });
+  } catch {
+    conferenceLibraryStatus.textContent = t('conference.error');
+  }
+}
+
+async function refreshAdminSubmissions() {
+  if (!adminSubmissionController || authState.user?.role !== 'admin') return;
+  adminSubmissionsStatus.textContent = t('admin.loading');
+  try {
+    const submissions = await adminSubmissionController.list();
+    renderAdminSubmissions({
+      root: adminSubmissionsRoot,
+      submissions,
+      t: (key) => t(key),
+      async onReview(input) {
+        try { await adminSubmissionController.review(input); await refreshAdminSubmissions(); }
+        catch { adminSubmissionsStatus.textContent = t('admin.error'); }
+      },
+    });
+    adminSubmissionsStatus.textContent = t('admin.loaded', { count: submissions.length });
+  } catch { adminSubmissionsStatus.textContent = t('admin.error'); }
+}
 conversationStore = createConversationStore({
   fetchImpl: window.fetch.bind(window),
   endpoint: apiEndpoint('save-analysis', '/api/save-analysis'),
@@ -938,6 +975,21 @@ conversationStore = createConversationStore({
   randomUUID: () => window.crypto.randomUUID(),
   supabase: browserSupabase,
   getUserId: () => authState.user?.id ?? null,
+});
+adminSubmissionController = createAdminSubmissionController({
+  supabase: browserSupabase,
+  getAccessToken: currentAccessToken,
+  isAdmin: () => authState.user?.role === 'admin',
+  api: {
+    async review(payload, { accessToken }) {
+      const response = await fetch(apiEndpoint('review-program', '/api/review-program'), {
+        method: 'POST', headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' }, body: JSON.stringify(payload),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body?.error?.code ?? 'review_failed');
+      return body.data;
+    },
+  },
 });
 savedPaperController = buildSavedPaperController();
 authUi = initAuthUi({
@@ -971,6 +1023,10 @@ authUi = initAuthUi({
         saveAnalysisStatus.textContent = '';
       }
     }
+    const admin = state.status === 'authenticated' && state.user?.role === 'admin';
+    adminSubmissionsSection.hidden = !admin;
+    if (admin) void refreshAdminSubmissions();
+    else clearElement(adminSubmissionsRoot);
   },
   consumeIntent(intent) {
     return restoreAuthenticatedIntent(intent);
@@ -1077,3 +1133,4 @@ saveAnalysisButton.addEventListener('click', (event) => {
 renderUiState();
 updateCharacterCount();
 loadCorpusStatus();
+refreshConferenceLibrary();

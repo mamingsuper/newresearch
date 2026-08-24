@@ -173,6 +173,13 @@ blockquote { margin: 18px 0; padding: 14px 16px; border-left: 4px solid var(--ye
 .workspace-preview h2 { margin: 0 0 1rem; }
 .workspace-preview p:last-child { max-width: 65ch; margin: 0; color: var(--muted); }
 .program-submission-shell { width: min(100%, var(--reading-width)); padding: 4rem 0; border-top: 1px solid var(--line); scroll-margin-top: 5rem; }
+.conference-library-shell { width: min(100%, var(--reading-width)); padding: 4rem 0; border-top: 1px solid var(--line); scroll-margin-top: 5rem; }
+.conference-library-shell h2 { margin: 0; font-size: clamp(2.4rem, 5vw, 4.6rem); line-height: 1; letter-spacing: -.055em; }
+#conference-library-root, #admin-submissions-root { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+.conference-card, .admin-submission-card { display: grid; gap: .75rem; padding: 1.5rem; border: 1px solid var(--ink); background: var(--surface-strong); box-shadow: 4px 5px 0 rgba(17,17,17,.13); }
+.conference-card h3, .conference-card p, .admin-submission-card h3, .admin-submission-card p { margin: 0; }
+.conference-meta, .conference-coverage { color: var(--muted); font-size: var(--font-control); font-weight: 800; text-transform: uppercase; }
+.conference-card a { width: fit-content; color: var(--blue); font-weight: 850; }
 .program-submission-shell h2 { margin: 0; font-size: clamp(2.4rem, 5vw, 4.6rem); line-height: 1; letter-spacing: -.055em; }
 .program-intro { max-width: 65ch; color: var(--muted); font-size: var(--font-body); line-height: 1.65; }
 #program-submission-form { display: grid; gap: 1.1rem; margin-top: 2rem; padding: clamp(1rem, 3vw, 2rem); border: 1px solid var(--ink); background: var(--surface-strong); box-shadow: 5px 6px 0 rgba(17,17,17,.13); }
@@ -221,6 +228,7 @@ table th, table td { font-size: var(--font-control); }
   .section-intro, .report-heading, .privacy-strip, .saved-papers-heading, .conversations-heading, .program-grid { grid-template-columns: 1fr; }
   .method-grid, .innovation-list { grid-template-columns: 1fr; }
   .profile-grid, .evidence-grid, .final-grid { grid-template-columns: 1fr; }
+  #conference-library-root, #admin-submissions-root { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 560px) {

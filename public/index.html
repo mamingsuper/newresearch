@@ -133,10 +133,12 @@
         </div>
       </section>
 
-      <section class="workspace-preview shell" id="conference-library" aria-labelledby="conference-library-title">
-        <p class="eyebrow" data-i18n="preview.comingNext">Coming next</p>
-        <h2 id="conference-library-title" data-i18n="preview.libraryTitle">Conference library</h2>
-        <p data-i18n="preview.libraryCopy">Browse and compare the indexed conference evidence here as the next workspace stage arrives.</p>
+      <section class="conference-library-shell shell" id="conference-library" aria-labelledby="conference-library-title">
+        <p class="eyebrow" data-i18n="conference.eyebrow">Reviewed provenance</p>
+        <h2 id="conference-library-title" data-i18n="conference.title">Conference program library</h2>
+        <p class="program-intro" data-i18n="conference.copy">Browse published conference programs and their reviewed corpus coverage.</p>
+        <p id="conference-library-status" role="status" aria-live="polite"></p>
+        <div id="conference-library-root"></div>
       </section>
 
       <section class="saved-papers-shell shell" id="saved-papers" aria-labelledby="saved-papers-title" hidden>
@@ -152,6 +154,13 @@
         </div>
         <p id="saved-papers-status" role="status" aria-live="polite" hidden></p>
         <div id="saved-papers-root"></div>
+      </section>
+
+      <section class="conference-library-shell shell" id="admin-submissions" aria-labelledby="admin-submissions-title" hidden>
+        <p class="eyebrow" data-i18n="admin.eyebrow">Administrator</p>
+        <h2 id="admin-submissions-title" data-i18n="admin.title">Program moderation queue</h2>
+        <p id="admin-submissions-status" role="status" aria-live="polite"></p>
+        <div id="admin-submissions-root"></div>
       </section>
 
       <section class="conversations-shell shell" id="conversations" aria-labelledby="conversations-title" hidden>

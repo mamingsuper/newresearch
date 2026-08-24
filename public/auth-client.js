@@ -53,9 +53,10 @@ function sessionState(session, disabled = false) {
   if (disabled) return { status: 'disabled', user: null };
   const user = session?.user;
   if (!user?.id) return { status: 'anonymous', user: null };
+  const role = user.app_metadata?.role === 'admin' ? 'admin' : '';
   return {
     status: 'authenticated',
-    user: { id: String(user.id), email: typeof user.email === 'string' ? user.email : '' },
+    user: { id: String(user.id), email: typeof user.email === 'string' ? user.email : '', ...(role ? { role } : {}) },
   };
 }
 
