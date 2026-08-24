@@ -95,7 +95,8 @@ test('Pages workflow verifies and deploys the pages-dist artifact from main', as
   assert.match(workflow, /npm run build/);
   assert.match(workflow, /npm run pages:build/);
   assert.match(workflow, /PUBLIC_SUPABASE_PUBLISHABLE_KEY:\s*\$\{\{\s*vars\.SUPABASE_PUBLISHABLE_KEY\s*\}\}/);
-  assert.match(workflow, /actions\/configure-pages@v5/);
+  assert.match(workflow, /npm run pages:budget/);
+  assert.match(workflow, /actions\/configure-pages@v6/);
   assert.match(workflow, /actions\/upload-pages-artifact@v4/);
   assert.match(workflow, /path:\s*pages-dist/i);
   assert.match(workflow, /actions\/deploy-pages@v4/);

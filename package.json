@@ -18,6 +18,7 @@
     "check": "node scripts/check-project.mjs",
     "build": "npm run browser:vendor && node scripts/build.mjs",
     "pages:build": "npm run browser:vendor && node scripts/build-pages.mjs",
+    "pages:budget": "node scripts/check-pages-budget.mjs",
     "import:snapshot": "node scripts/import-snapshot.mjs",
     "corpus:validate": "node scripts/corpus-validate.mjs",
     "corpus:load": "node --env-file-if-exists=.env scripts/corpus-load.mjs",
