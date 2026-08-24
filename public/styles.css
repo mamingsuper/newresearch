@@ -77,8 +77,17 @@ a { color: inherit; }
 .auth-provider-actions button, #auth-sign-out, .auth-cancel { min-height: 2.75rem; padding: .65rem .85rem; border: 1px solid var(--ink); border-radius: 6px; color: var(--ink); background: var(--surface); cursor: pointer; font-weight: 800; }
 .auth-provider-button { display: inline-flex; align-items: center; justify-content: center; gap: .65rem; }
 .auth-provider-icon { flex: 0 0 auto; width: 1.35rem; height: 1.35rem; }
-#auth-authenticated-controls { padding: 1rem; border: 1px solid var(--ink); background: var(--mint); }
-#auth-authenticated-controls p { margin-top: 0; }
+#auth-authenticated-controls { display: grid; gap: 1rem; padding: 1rem; border: 1px solid var(--ink); background: var(--mint); }
+#auth-authenticated-controls[hidden] { display: none; }
+.account-identity-card, .account-plan-card { display: grid; gap: .35rem; padding: .9rem; border: 1px solid var(--ink); background: var(--surface-strong); }
+.account-identity-card span, .account-plan-card span { color: var(--muted); font-size: var(--font-control); }
+.account-identity-card strong { overflow-wrap: anywhere; }
+.account-plan-card > div { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.account-plan-card p { margin: 0; color: var(--muted); }
+.account-library-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.account-library-grid button { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 4rem; padding: .85rem; border: 1px solid var(--ink); border-radius: 6px; background: var(--surface); cursor: pointer; font-weight: 800; text-align: left; }
+.account-library-grid strong { font-size: 1.45rem; }
+.account-status { min-height: 1.5em; margin: 0; color: var(--muted); }
 .auth-dialog-status { min-height: 1.65em; margin: 0; color: var(--muted); font-size: var(--font-control); }
 .auth-cancel { justify-self: end; background: transparent; }
 .auth-dialog button:focus-visible, .auth-dialog input:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
@@ -255,6 +264,7 @@ table th, table td { font-size: var(--font-control); }
   .method-grid article { min-height: 200px; }
   .footer-inner { align-items: flex-start; flex-direction: column; justify-content: center; padding-block: 18px; }
   .auth-provider-actions { grid-template-columns: 1fr; }
+  .account-library-grid { grid-template-columns: 1fr; }
   .auth-dialog-card { padding: 1.25rem; }
 }
 
