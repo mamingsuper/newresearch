@@ -19,11 +19,15 @@ test('workbench HTML exposes the required accessible landmarks and Pages-safe as
   assert.match(html, /<textarea[^>]+id="idea-input"/i);
   assert.match(html, /id="analysis-form"/i);
   assert.match(html, /id="report-root"/i);
+  assert.match(html, /href="\.\/favicon\.svg"/i);
+  assert.match(html, /class="hero-layout"/i);
+  assert.match(html, /class="corpus-overview"/i);
+  assert.match(html, /class="console-heading"/i);
   assert.match(html, /currently indexed|corpus/i);
-  assert.match(html, /href="\.\/styles\.css"/i);
-  assert.match(html, /href="\.\/results-v2\.css"/i);
+  assert.match(html, /href="\.\/styles\.css\?v=[^"]+"/i);
+  assert.match(html, /href="\.\/results-v2\.css\?v=[^"]+"/i);
   assert.match(html, /src="\.\/config\.js"/i);
-  assert.match(html, /type="module"[^>]+src="\.\/app\.js"/i);
+  assert.match(html, /type="module"[^>]+src="\.\/app\.js\?v=[^"]+"/i);
   assert.doesNotMatch(html, /(?:href|src)="\/(?:styles\.css|results-v2\.css|app\.js|config\.js)"/i);
 });
 
@@ -86,7 +90,7 @@ test('idea radar landing page is a centered query-first research workbench', asy
   const analysisForm = await readFile(path.join(publicDir, 'analysis-form.js'), 'utf8');
   const i18n = await readFile(path.join(publicDir, 'i18n.js'), 'utf8');
 
-  assert.match(html, /Scan your research idea against the frontier/i);
+  assert.match(html, /Map your idea to the research frontier/i);
   assert.match(html, /APSA 2026/);
   assert.match(html, /5,493 papers/);
   assert.match(html, /ICA 2026/);
@@ -98,7 +102,7 @@ test('idea radar landing page is a centered query-first research workbench', asy
   assert.match(html, /id="progress-percent"/i);
   assert.match(html, /id="progress-stage"/i);
   assert.doesNotMatch(html, /id="live-workbench"/i);
-  assert.match(html, /Start Testing/i);
+  assert.match(html, /Map my idea/i);
   assert.match(html, /No global novelty claims/i);
 
   assert.match(styles, /--font-body:\s*1\.125rem/i);

@@ -7,16 +7,23 @@
       name="description"
       content="Test an early-stage social-science research idea against live conference-paper evidence."
     />
+    <meta name="theme-color" content="#f6f0e4" />
+    <meta property="og:title" content="Idea Radar — Research Frontier Testing" />
+    <meta property="og:description" content="Map a social-science research idea against APSA and ICA conference evidence." />
     <title>Idea Radar — Research Frontier Testing</title>
-    <link rel="stylesheet" href="./styles.css" />
-    <link rel="stylesheet" href="./results-v2.css" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css?v=20260824-taste3" />
+    <link rel="stylesheet" href="./results-v2.css?v=20260824-taste3" />
   </head>
   <body>
     <a class="skip-link" href="#idea-input" data-i18n="skip.ideaTesting">Skip to idea testing</a>
 
     <div class="workspace-shell" id="workspace-shell">
       <aside class="workspace-sidebar" id="workspace-nav" aria-label="Workspace navigation" data-i18n-aria-label="nav.label">
-        <a class="brand" href="#new-analysis">Idea Radar</a>
+        <a class="brand" href="#new-analysis">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
+          <span>Idea Radar</span>
+        </a>
         <nav>
           <a href="#new-analysis" aria-current="page" data-i18n="nav.newAnalysis">New analysis</a>
           <a href="#conference-library" data-i18n="nav.conferenceLibrary">Conference library</a>
@@ -38,7 +45,10 @@
 
       <div class="workspace-content">
         <header class="mobile-workspace-header">
-          <a class="brand" href="#new-analysis">Idea Radar</a>
+          <a class="brand" href="#new-analysis">
+            <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
+            <span>Idea Radar</span>
+          </a>
           <button id="workspace-menu-button" type="button" aria-controls="workspace-nav" aria-expanded="false" data-i18n="nav.menu">Menu</button>
         </header>
 
@@ -48,27 +58,35 @@
 
         <main id="workspace-main">
       <section class="query-hero shell" id="new-analysis" aria-labelledby="hero-title">
-        <div class="query-intro">
-          <p class="eyebrow" data-i18n="hero.eyebrow">Live conference evidence / social science</p>
-          <h1 id="hero-title" data-i18n="hero.title">Scan your research idea against the frontier</h1>
-          <p class="corpus-ledger" id="corpus-ledger" data-i18n="hero.ledger">
-            APSA 2026 · 5,493 papers + ICA 2026 · 3,413 papers = 8,906 abstracts
-          </p>
-          <p class="hero-copy" data-i18n="hero.copy">
-            Compare your idea with the currently indexed conference corpus, inspect the closest
-            papers, and build evidence-linked directions for a stronger research design.
-          </p>
-        </div>
+        <div class="hero-layout">
+          <div class="query-intro">
+            <p class="eyebrow" data-i18n="hero.eyebrow">Live conference evidence / social science</p>
+            <h1 id="hero-title" data-i18n="hero.title">Map your idea to the research frontier</h1>
+            <p class="hero-copy" data-i18n="hero.copy">
+              Compare your idea with the currently indexed conference corpus, inspect the closest
+              papers, and build evidence-linked directions for a stronger research design.
+            </p>
+          </div>
 
-        <div class="feature-pills" aria-label="Product capabilities" data-i18n-aria-label="feature.label">
-          <span class="feature-pill pill-blue" data-i18n="feature.semantic">Semantic Search</span>
-          <span class="feature-pill pill-yellow" data-i18n="feature.rag">Hybrid RAG</span>
-          <span class="feature-pill pill-black" data-i18n="feature.papers">8,906 Conference Papers</span>
-          <span class="feature-pill pill-green" data-i18n="feature.grounded">Evidence Grounded</span>
+          <aside class="corpus-overview" aria-label="Live corpus" data-i18n-aria-label="corpus.live">
+            <p class="corpus-overview-label"><span class="live-dot" aria-hidden="true"></span><span data-i18n="corpus.live">Live corpus</span></p>
+            <p class="corpus-ledger" id="corpus-ledger" data-i18n="hero.ledger">
+              APSA 2026 · 5,493 papers + ICA 2026 · 3,413 papers = 8,906 abstracts
+            </p>
+            <div class="feature-pills" aria-label="Product capabilities" data-i18n-aria-label="feature.label">
+              <span class="feature-pill pill-blue" data-i18n="feature.semantic">Semantic Search</span>
+              <span class="feature-pill pill-yellow" data-i18n="feature.rag">Hybrid RAG</span>
+              <span class="feature-pill pill-black" data-i18n="feature.papers">8,906 Conference Papers</span>
+              <span class="feature-pill pill-green" data-i18n="feature.grounded">Evidence Grounded</span>
+            </div>
+          </aside>
         </div>
 
         <form class="idea-console" id="analysis-form" novalidate>
-          <label class="sr-only" for="idea-input" data-i18n="form.idea">Research idea</label>
+          <div class="console-heading">
+            <label for="idea-input" data-i18n="form.idea">Research idea</label>
+            <span id="character-count" aria-live="polite">0 / 5000</span>
+          </div>
           <textarea
             id="idea-input"
             name="idea"
@@ -80,9 +98,8 @@
           ></textarea>
           <div class="console-actions">
             <button class="text-button" id="example-button" type="button" data-i18n="form.example">Try an example</button>
-            <span id="character-count" aria-live="polite">0 / 5000</span>
             <button class="primary-button" id="submit-button" type="submit">
-              <span data-i18n="form.submit">Start Testing</span> <span aria-hidden="true">→</span>
+              <span data-i18n="form.submit">Map my idea</span> <span aria-hidden="true">→</span>
             </button>
           </div>
           <p class="coverage-copy" data-i18n="form.coverage">
@@ -318,6 +335,6 @@
 
     <script src="./config.js"></script>
     <script src="./vendor/supabase-2.112.3.js"></script>
-    <script type="module" src="./app.js"></script>
+    <script type="module" src="./app.js?v=20260824-taste3"></script>
   </body>
 </html>

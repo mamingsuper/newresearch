@@ -354,3 +354,77 @@
 @media (prefers-reduced-motion: reduce) {
   .paper-abstract-preview { transition: none; animation: none; }
 }
+
+/* Refined research-results hierarchy */
+.ranking-note { max-width: 65ch; }
+.related-paper-list { gap: .9rem; }
+.related-paper-card {
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  overflow: visible;
+  border-color: var(--line);
+  border-radius: var(--radius-control);
+  box-shadow: none;
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.related-paper-card:focus-within,
+.related-paper-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(36, 71, 216, .35);
+  box-shadow: var(--soft-shadow);
+}
+.paper-rank {
+  align-items: center;
+  padding: 1.35rem .75rem;
+  border-radius: var(--radius-control) 0 0 var(--radius-control);
+  background: rgba(223, 229, 255, .62);
+}
+.paper-rank-number {
+  padding: .45rem .55rem;
+  border: 0;
+  border-radius: .4rem;
+  font-weight: 700;
+}
+.paper-body { padding: 1.35rem 1.5rem 1.55rem; }
+.paper-citation-line strong { font-size: 1rem; }
+.paper-citation-line span { font-weight: 650; text-transform: none; }
+.paper-meta-score,
+.paper-meta-chip,
+.paper-meta-row .source-link {
+  border-radius: .35rem;
+  font-weight: 650;
+}
+.paper-actions button {
+  border-color: var(--line);
+  border-radius: var(--radius-small);
+  cursor: pointer;
+  font-weight: 650;
+  transition: color .2s ease, background-color .2s ease, border-color .2s ease, transform .2s ease;
+}
+.paper-actions button:hover,
+.paper-actions button:focus-visible {
+  transform: translateY(-1px);
+  border-color: var(--blue);
+}
+.abstract-label,
+.paper-abstract-preview-label,
+.grounding-label { font-weight: 700; }
+.paper-abstract,
+.paper-abstract-preview-text { color: var(--ink); }
+.paper-abstract-preview {
+  border-color: var(--line);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow);
+}
+.paper-abstract-preview-source,
+.grounding-reference { font-weight: 700; }
+.grounding-references { border-top-style: solid; }
+
+@media (max-width: 720px) {
+  .related-paper-card { grid-template-columns: 1fr; }
+  .paper-rank { border-radius: var(--radius-control) var(--radius-control) 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .related-paper-card,
+  .paper-actions button { transition: none; animation: none; }
+}

@@ -24,11 +24,11 @@ test('workspace UI state preserves semantic busy, progress, error, and auth stat
   assert.equal(english.progress.value, 55);
   assert.equal(english.progress.hidden, false);
   assert.equal(english.progress.label, 'Running Hybrid vector + full-text retrieval');
-  assert.equal(english.submitLabel, 'Scanning corpus…');
+  assert.equal(english.submitLabel, 'Mapping the corpus…');
   assert.equal(english.error, 'The analysis could not be completed.');
   assert.equal(english.auth, 'Saved papers is coming soon. Sign-in and saved work are not available in this stage.');
   assert.equal(chinese.progress.label, '正在运行混合向量与全文检索');
-  assert.equal(chinese.submitLabel, '正在扫描语料库…');
+  assert.equal(chinese.submitLabel, '正在映射语料库…');
   assert.equal(chinese.error, '分析无法完成。');
   assert.equal(chinese.auth, '收藏论文 即将推出。本阶段尚不支持登录或保存工作。');
 });

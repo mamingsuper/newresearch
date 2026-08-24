@@ -1,4 +1,4 @@
-import { createTranslator } from './i18n.js';
+import { createTranslator } from './i18n.js?v=20260824-taste3';
 import { createWorkspaceUiState, initWorkspaceNavigation } from './workspace.js';
 import { createCorpusStatusModel, normalizeCorpus, presentRenderedReport } from './workspace-behaviors.js';
 import { createAuthClient } from './auth-client.js';
