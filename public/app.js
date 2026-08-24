@@ -12,6 +12,7 @@ import { createPrivateCacheGuard } from './private-cache-guard.js';
 import { createProgramSubmissionController, initProgramSubmissionUi } from './program-submission.js';
 import { loadConferencePrograms, renderConferencePrograms } from './conference-library.js';
 import { createAdminSubmissionController, renderAdminSubmissions } from './admin-submissions.js';
+import { initAccountActions } from './account.js';
 
 const LOCALE_STORAGE_KEY = 'idea-radar-locale';
 const readLocale = () => {
@@ -55,6 +56,8 @@ const conferenceLibraryStatus = document.querySelector('#conference-library-stat
 const adminSubmissionsSection = document.querySelector('#admin-submissions');
 const adminSubmissionsRoot = document.querySelector('#admin-submissions-root');
 const adminSubmissionsStatus = document.querySelector('#admin-submissions-status');
+const accountExportButton = document.querySelector('#account-export');
+const accountDeleteButton = document.querySelector('#account-delete');
 
 const PROGRESS_STAGES = [
   { target: 5, key: 'progress.stage.understanding' },
@@ -1050,6 +1053,15 @@ authUi = initAuthUi({
   consumeIntent(intent) {
     return restoreAuthenticatedIntent(intent);
   },
+});
+initAccountActions({
+  exportButton: accountExportButton,
+  deleteButton: accountDeleteButton,
+  getAccessToken: currentAccessToken,
+  endpoint: edgeApiBase || '/api',
+  download(blob, filename) { const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = filename; link.click(); URL.revokeObjectURL(url); },
+  signOut: () => authClient.signOut(),
+  t: (key) => t(key),
 });
 authActionRouter = createAuthActionRouter({
   getAuthState: () => authState,

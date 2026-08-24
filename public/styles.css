@@ -218,6 +218,8 @@ blockquote { margin: 18px 0; padding: 14px 16px; border-left: 4px solid var(--ye
 .conversation-actions button, #save-analysis-button { min-height: 2.75rem; padding: .6rem .8rem; border: 1px solid var(--ink); background: var(--surface); color: var(--ink); cursor: pointer; font-size: var(--font-control); font-weight: 800; }
 #save-analysis-button { background: var(--yellow); }
 #save-analysis-status { font-size: var(--font-control); }
+.account-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin: 1rem 0; }
+.danger-button { border-color: #8b1e1e !important; color: #8b1e1e !important; }
 table th, table td { font-size: var(--font-control); }
 
 @media (max-width: 820px) {
