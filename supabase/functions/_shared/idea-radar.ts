@@ -119,7 +119,7 @@ function env(name: string): string {
 export function corsHeaders(origin: string | null, methods = 'GET, POST, OPTIONS'): HeadersInit {
   const headers: Record<string, string> = {
     'Access-Control-Allow-Methods': methods,
-    'Access-Control-Allow-Headers': 'content-type',
+    'Access-Control-Allow-Headers': 'authorization, content-type',
     Vary: 'Origin',
   };
   if (origin && ALLOWED_ORIGINS.has(origin)) headers['Access-Control-Allow-Origin'] = origin;
@@ -207,6 +207,32 @@ async function consumeRateLimit(req: Request): Promise<{ allowed: boolean; retry
   const result = row as Record<string, unknown>;
   return {
     allowed: result.allowed === true,
+    retryAfterSeconds: Math.max(0, Number(result.retry_after_seconds ?? 0)),
+  };
+}
+
+async function authenticatedUserId(req: Request): Promise<string | null> {
+  const token = req.headers.get('authorization')?.match(/^Bearer\s+([^\s]+)$/i)?.[1];
+  if (!token) return null;
+  const publicKey = Deno.env.get('SUPABASE_PUBLISHABLE_KEY')?.trim() || Deno.env.get('SUPABASE_ANON_KEY')?.trim();
+  if (!publicKey) throw new Error('missing_supabase_public_key');
+  const response = await fetch(`${env('SUPABASE_URL').replace(/\/$/, '')}/auth/v1/user`, {
+    headers: { apikey: publicKey, authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) return null;
+  const user = await response.json();
+  return typeof user?.id === 'string' && user.id ? user.id : null;
+}
+
+async function consumeEntitlement(userId: string): Promise<{ allowed: boolean; plan: string; remaining: number | null; retryAfterSeconds: number }> {
+  const raw = await rpc('consume_analysis_entitlement', { target_user_id: userId });
+  const row = Array.isArray(raw) ? raw[0] : raw;
+  if (!row || typeof row !== 'object') throw new Error('invalid_entitlement_response');
+  const result = row as Record<string, unknown>;
+  return {
+    allowed: result.allowed === true,
+    plan: result.plan === 'pro' ? 'pro' : 'free',
+    remaining: result.remaining === null ? null : Math.max(0, Number(result.remaining ?? 0)),
     retryAfterSeconds: Math.max(0, Number(result.retry_after_seconds ?? 0)),
   };
 }
@@ -468,6 +494,8 @@ export async function handleAnalyzeRequest(req: Request): Promise<Response> {
 
   try {
     const idea = await readIdea(req);
+    const userId = await authenticatedUserId(req);
+    if (!userId) return jsonResponse({ error: { code: 'AUTH_REQUIRED', message: 'Sign in to analyze a research idea.' } }, 401, origin);
     const limit = await consumeRateLimit(req);
     if (!limit.allowed) {
       return jsonResponse(
@@ -476,6 +504,16 @@ export async function handleAnalyzeRequest(req: Request): Promise<Response> {
         origin,
         'no-store',
         { 'Retry-After': String(limit.retryAfterSeconds) },
+      );
+    }
+    const entitlement = await consumeEntitlement(userId);
+    if (!entitlement.allowed) {
+      return jsonResponse(
+        { error: { code: 'DAILY_LIMIT_REACHED', message: 'Your free daily analysis is used. Upgrade to Pro or try again tomorrow.' } },
+        429,
+        origin,
+        'no-store',
+        { 'Retry-After': String(entitlement.retryAfterSeconds) },
       );
     }
 

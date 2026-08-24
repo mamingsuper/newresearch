@@ -84,6 +84,8 @@ a { color: inherit; }
 .account-identity-card strong { overflow-wrap: anywhere; }
 .account-plan-card > div { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
 .account-plan-card p { margin: 0; color: var(--muted); }
+.account-billing-actions { display: flex; flex-wrap: wrap; gap: .65rem; margin-top: .35rem; }
+.account-billing-actions button { flex: 1 1 12rem; }
 .account-library-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
 .account-library-grid button { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 4rem; padding: .85rem; border: 1px solid var(--ink); border-radius: 6px; background: var(--surface); cursor: pointer; font-weight: 800; text-align: left; }
 .account-library-grid strong { font-size: 1.45rem; }

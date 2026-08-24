@@ -115,7 +115,8 @@ test('idea radar landing page is a centered query-first research workbench', asy
   assert.match(script, /function\s+completeProgress\s*\(\s*\)[\s\S]*100[\s\S]*'progress\.ready'/);
   assert.match(i18n, /'progress\.ready': 'Report ready'/);
   assert.match(script, /initPublicAnalysisForm/);
-  assert.match(analysisForm, /if\s*\(!response\.ok\)\s*throw/);
+  assert.match(analysisForm, /if\s*\(!response\.ok\)\s*\{/);
+  assert.match(analysisForm, /payload\?\.error\?\.code/);
   assert.match(script, /onSuccess\(report\)\s*\{[\s\S]*completeProgress\(\)/);
 
   assert.match(styles, /--paper:\s*#f6f0e4/i);

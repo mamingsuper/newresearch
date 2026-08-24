@@ -248,7 +248,7 @@
         <div>
           <p class="eyebrow" data-i18n="auth.eyebrow">Private research workspace</p>
           <h2 id="auth-dialog-title" data-i18n="auth.title">Sign in to save your work</h2>
-          <p class="auth-dialog-copy" data-i18n="auth.copy">Continue with a secure magic link or an enabled provider. Anonymous idea testing stays available.</p>
+          <p class="auth-dialog-copy" data-i18n="auth.copy">Continue with a secure magic link or an enabled provider. An account is required for analysis.</p>
         </div>
 
         <div id="auth-anonymous-controls">
@@ -285,9 +285,13 @@
           <div class="account-plan-card">
             <div>
               <span data-i18n="account.currentPlan">Current plan</span>
-              <strong data-i18n="account.freeBeta">Free beta</strong>
+              <strong id="account-plan-name" data-i18n="account.free">Free</strong>
             </div>
-            <p data-i18n="account.planPreview">Free: 1 analysis/day · Pro: $10/month with unlimited analyses. Billing is not active yet.</p>
+            <p id="account-plan-details" data-i18n="account.freeDetails">1 analysis remaining today.</p>
+            <div class="account-billing-actions">
+              <button id="account-upgrade" class="primary-button" type="button" data-i18n="account.upgrade">Upgrade to Pro — $10/month</button>
+              <button id="account-manage-billing" type="button" data-i18n="account.manageBilling" hidden>Manage subscription</button>
+            </div>
           </div>
           <div class="account-library-grid" aria-label="Private workspace" data-i18n-aria-label="account.workspace">
             <button id="account-saved-papers" type="button">

@@ -23,6 +23,10 @@ test('analyze-idea Edge Function enforces the public beta evidence contract', as
   assert.match(source, /SHA-256/i);
   assert.match(source, /RATE_LIMIT_HMAC_KEY/);
   assert.match(source, /consume_beta_rate_limit/);
+  assert.match(source, /consume_analysis_entitlement/);
+  assert.match(source, /AUTH_REQUIRED/);
+  assert.match(source, /DAILY_LIMIT_REACHED/);
+  assert.match(source, /authorization, content-type/i);
   assert.match(source, /text-embedding-3-small/);
   assert.match(source, /dimensions\s*:\s*512/);
   assert.match(source, /match_count\s*:\s*20/);
