@@ -953,3 +953,35 @@ $$;
 
 revoke all on function public.confirm_program_import(uuid) from public, anon, authenticated;
 grant execute on function public.confirm_program_import(uuid) to authenticated;
+
+create or replace function public.save_program_import_preview(
+  target_submission_id uuid,
+  target_actor_user_id uuid,
+  target_source_sha256 text,
+  target_mode text,
+  target_records jsonb
+) returns jsonb
+language plpgsql security definer set search_path = ''
+as $$
+declare accepted integer; rejected integer;
+begin
+  if auth.role() is distinct from 'service_role' then raise sqlstate '42501' using message = 'service role required'; end if;
+  if target_mode not in ('structured','program_only') or target_source_sha256 !~ '^[0-9a-f]{64}$' or jsonb_typeof(target_records) <> 'array' then raise sqlstate '22023' using message = 'invalid preview'; end if;
+  perform 1 from public.program_submissions where id=target_submission_id and status='approved' for update;
+  if not found then raise sqlstate '40001' using message='submission is not approved'; end if;
+  accepted := (select count(*) from jsonb_array_elements(target_records) row where row->>'validation_status'='valid');
+  rejected := jsonb_array_length(target_records)-accepted;
+  insert into workspace_private.program_import_previews(submission_id,preview_status,parser_name,parser_version,source_sha256,record_count,rejected_count,safe_summary,created_by)
+  values(target_submission_id,'valid','bounded-json-csv','1',target_source_sha256,accepted,rejected,jsonb_build_object('mode',target_mode,'accepted',accepted,'rejected',rejected),target_actor_user_id)
+  on conflict(submission_id) do update set preview_status='valid',source_sha256=excluded.source_sha256,record_count=excluded.record_count,rejected_count=excluded.rejected_count,safe_summary=excluded.safe_summary,created_by=excluded.created_by,updated_at=now();
+  delete from workspace_private.program_import_records where submission_id=target_submission_id;
+  insert into workspace_private.program_import_records(submission_id,record_index,validation_status,validation_errors,source_record_id,title,abstract,authors,division,session_title,session_type,keywords,source_url,raw_hash,embedding_input_hash)
+  select target_submission_id,(row->>'record_index')::integer,row->>'validation_status',coalesce(row->'validation_errors','[]'::jsonb),row->>'source_record_id',row->>'title',row->>'abstract',row->'authors',row->>'division',row->>'session_title',row->>'session_type',coalesce(array(select jsonb_array_elements_text(row->'keywords')),array[]::text[]),row->>'source_url',row->>'raw_hash',row->>'embedding_input_hash'
+  from jsonb_array_elements(target_records) row;
+  update public.program_submissions set status='import_preview',updated_at=now(),reviewed_by=target_actor_user_id,reviewed_at=now() where id=target_submission_id;
+  insert into workspace_private.submission_events(submission_id,actor_user_id,from_status,to_status,event_type,detail) values(target_submission_id,target_actor_user_id,'approved','import_preview','preview_created',jsonb_build_object('accepted',accepted,'rejected',rejected,'mode',target_mode));
+  return jsonb_build_object('submissionId',target_submission_id,'status','import_preview','mode',target_mode,'accepted',accepted,'rejected',rejected);
+end; $$;
+alter function public.save_program_import_preview(uuid,uuid,text,text,jsonb) owner to postgres;
+revoke all on function public.save_program_import_preview(uuid,uuid,text,text,jsonb) from public,anon,authenticated;
+grant execute on function public.save_program_import_preview(uuid,uuid,text,text,jsonb) to service_role;
