@@ -13,6 +13,7 @@ import { createProgramSubmissionController, initProgramSubmissionUi } from './pr
 import { loadConferencePrograms, renderConferencePrograms } from './conference-library.js';
 import { createAdminSubmissionController, renderAdminSubmissions } from './admin-submissions.js';
 import { initAccountActions } from './account.js';
+import { initBillingActions } from './billing.js';
 
 const LOCALE_STORAGE_KEY = 'idea-radar-locale';
 const readLocale = () => {
@@ -66,6 +67,10 @@ const accountSavedPapersButton = document.querySelector('#account-saved-papers')
 const accountConversationsButton = document.querySelector('#account-conversations');
 const accountSavedCount = document.querySelector('#account-saved-count');
 const accountConversationCount = document.querySelector('#account-conversation-count');
+const accountPlanName = document.querySelector('#account-plan-name');
+const accountPlanDetails = document.querySelector('#account-plan-details');
+const accountUpgradeButton = document.querySelector('#account-upgrade');
+const accountManageBillingButton = document.querySelector('#account-manage-billing');
 
 const PROGRESS_STAGES = [
   { target: 5, key: 'progress.stage.understanding' },
@@ -88,6 +93,7 @@ let latestReportSaved = false;
 let authState = { status: 'disabled', user: null };
 let authUi;
 let authActionRouter;
+let billingActions;
 let savedPaperController;
 let savedPaperStore;
 let savedPaperItems = [];
@@ -153,7 +159,7 @@ async function refreshAccountOverview() {
   accountSavedCount.textContent = '…';
   accountConversationCount.textContent = '…';
   try {
-    const [papers, conversations] = await Promise.all([savedPaperStore.list(), conversationStore.list()]);
+    const [papers, conversations] = await Promise.all([savedPaperStore.list(), conversationStore.list(), billingActions?.refresh()]);
     if (!privateCacheGuard.isActive(ownerId)) return;
     savedPaperItems = papers;
     conversationItems = conversations;
@@ -1079,6 +1085,7 @@ authUi = initAuthUi({
     const cacheTransition = privateCacheGuard.transition(state.user?.id ?? null);
     authState = state;
     renderAccountOverview();
+    if (state.status === 'authenticated') void billingActions?.refresh();
     accountEntry.dataset.authState = state.status;
     accountEntry.textContent = t(state.status === 'authenticated' ? 'nav.account' : 'nav.signIn');
     if (cacheTransition.userChanged) {
@@ -1120,6 +1127,16 @@ initAccountActions({
   download(blob, filename) { const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = filename; link.click(); URL.revokeObjectURL(url); },
   signOut: () => authClient.signOut(),
   t: (key) => t(key),
+});
+billingActions = initBillingActions({
+  upgradeButton: accountUpgradeButton,
+  manageButton: accountManageBillingButton,
+  planName: accountPlanName,
+  planDetails: accountPlanDetails,
+  status: accountStatus,
+  getAccessToken: currentAccessToken,
+  endpoint: edgeApiBase || '/api',
+  t: (key, params) => t(key, params),
 });
 authActionRouter = createAuthActionRouter({
   getAuthState: () => authState,
@@ -1198,13 +1215,24 @@ initPublicAnalysisForm({
     setBusy(true);
     startProgress();
   },
-  analyze: (idea) => authActionRouter.runPublicAnalysis(() => (
-    fetch(apiEndpoint('analyze-idea', '/api/analyze'), {
+  analyze: async (idea) => authActionRouter.runPublicAnalysis(async () => {
+    if (authState.status !== 'authenticated') {
+      const error = new Error('auth_required');
+      error.code = 'AUTH_REQUIRED';
+      throw error;
+    }
+    const accessToken = await currentAccessToken();
+    if (!accessToken) {
+      const error = new Error('auth_required');
+      error.code = 'AUTH_REQUIRED';
+      throw error;
+    }
+    return fetch(apiEndpoint('analyze-idea', '/api/analyze'), {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
       body: JSON.stringify({ idea }),
-    })
-  )),
+    });
+  }),
   onSuccess(report) {
     completeProgress();
     privateCacheGuard.clear('report');
@@ -1212,9 +1240,15 @@ initPublicAnalysisForm({
     latestReportSaved = false;
     renderReport(report, { saved: false });
   },
-  onFailure() {
+  onFailure(_idea, error) {
     failProgress();
-    showError('error.analysis');
+    if (error?.code === 'AUTH_REQUIRED') {
+      showError('error.authRequired');
+      requestAccountAction('sign-in', '', submitButton);
+    } else if (error?.code === 'DAILY_LIMIT_REACHED') {
+      showError('error.dailyLimit');
+      requestAccountAction('sign-in', '', submitButton);
+    } else showError('error.analysis');
   },
   onFinish() { setBusy(false); },
 });

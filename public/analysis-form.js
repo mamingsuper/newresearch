@@ -27,10 +27,14 @@ export function initPublicAnalysisForm({
     try {
       const response = await analyze(idea);
       const payload = await response.json();
-      if (!response.ok) throw new Error('analysis-failed');
+      if (!response.ok) {
+        const error = new Error('analysis-failed');
+        error.code = payload?.error?.code ?? 'ANALYSIS_FAILED';
+        throw error;
+      }
       await onSuccess(payload.data ?? payload, idea);
-    } catch {
-      onFailure(idea);
+    } catch (error) {
+      onFailure(idea, error);
     } finally {
       onFinish(idea);
     }
