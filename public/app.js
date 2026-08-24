@@ -961,7 +961,14 @@ async function refreshAdminSubmissions() {
       submissions,
       t: (key) => t(key),
       async onReview(input) {
-        try { await adminSubmissionController.review(input); await refreshAdminSubmissions(); }
+        try {
+          if (input.action === 'preview') await adminSubmissionController.preview(input.submissionId);
+          else if (input.action === 'confirm') await adminSubmissionController.confirm(input.submissionId);
+          else if (input.action === 'embeddings') await adminSubmissionController.processEmbeddings(10);
+          else await adminSubmissionController.review(input);
+          await refreshAdminSubmissions();
+          await refreshConferenceLibrary();
+        }
         catch { adminSubmissionsStatus.textContent = t('admin.error'); }
       },
     });
@@ -988,6 +995,18 @@ adminSubmissionController = createAdminSubmissionController({
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body?.error?.code ?? 'review_failed');
       return body.data;
+    },
+    async preview(payload, { accessToken }) {
+      const response = await fetch(apiEndpoint('preview-program-import', '/api/preview-program-import'), { method: 'POST', headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+      const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(body?.error?.code ?? 'preview_failed'); return body.data;
+    },
+    async confirm(payload, { accessToken }) {
+      const response = await fetch(apiEndpoint('confirm-program-import', '/api/confirm-program-import'), { method: 'POST', headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+      const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(body?.error?.code ?? 'confirm_failed'); return body.data;
+    },
+    async processEmbeddings(payload, { accessToken }) {
+      const response = await fetch(apiEndpoint('process-embedding-jobs', '/api/process-embedding-jobs'), { method: 'POST', headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+      const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(body?.error?.code ?? 'embedding_failed'); return body.data;
     },
   },
 });

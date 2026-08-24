@@ -25,6 +25,9 @@ export function createAdminSubmissionController({ supabase, api, getAccessToken,
       if (!UUID.test(submissionId ?? '')) throw new Error('invalid_submission');
       return api.review({ submissionId, expectedStatus, decision, reason: clean(reason) }, { accessToken: token });
     },
+    async preview(submissionId) { const accessToken = await requireAdmin(); return api.preview({ submissionId }, { accessToken }); },
+    async confirm(submissionId) { const accessToken = await requireAdmin(); return api.confirm({ submissionId }, { accessToken }); },
+    async processEmbeddings(batchSize = 10) { const accessToken = await requireAdmin(); return api.processEmbeddings({ batchSize }, { accessToken }); },
   });
 }
 
@@ -59,6 +62,18 @@ export function renderAdminSubmissions({ root, submissions = [], t = (key) => ke
         onReview({ submissionId: submission.id, expectedStatus: submission.status, decision, reason: reason ?? '' });
       });
       actions.append(button);
+    }
+    if (submission.status === 'approved') {
+      const preview = el(document, 'button', t('admin.preview'));
+      preview.type = 'button'; preview.addEventListener('click', () => onReview({ action: 'preview', submissionId: submission.id })); actions.append(preview);
+    }
+    if (submission.status === 'import_preview') {
+      const confirm = el(document, 'button', t('admin.confirm'));
+      confirm.type = 'button'; confirm.addEventListener('click', () => onReview({ action: 'confirm', submissionId: submission.id })); actions.append(confirm);
+    }
+    if (submission.status === 'imported') {
+      const embeddings = el(document, 'button', t('admin.processEmbeddings'));
+      embeddings.type = 'button'; embeddings.addEventListener('click', () => onReview({ action: 'embeddings', submissionId: submission.id })); actions.append(embeddings);
     }
     card.append(actions);
     fragment.append(card);
