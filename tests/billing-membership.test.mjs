@@ -24,14 +24,16 @@ test('billing Edge Functions authenticate users and Stripe webhooks verify signa
   const names = ['billing-status', 'create-checkout-session', 'create-portal-session', 'stripe-webhook'];
   const sources = await Promise.all(names.map((name) => readFile(new URL(`../supabase/functions/${name}/index.ts`, import.meta.url), 'utf8')));
   assert.match(sources[0], /get_analysis_entitlement_status/);
-  assert.match(sources[1], /mode:'subscription'/);
+  assert.match(sources[0], /superRemaining/);
+  assert.match(sources[0], /superMonthlyLimit/);
+  assert.match(sources[1], /mode\s*:\s*['"]subscription['"]/);
   assert.match(sources[1], /STRIPE_PRICE_ID/);
   assert.match(sources[1], /client_reference_id/);
   assert.match(sources[2], /billing_portal\/sessions/);
   assert.match(sources[3], /STRIPE_WEBHOOK_SECRET/);
   assert.match(sources[3], /HMAC/);
   assert.match(sources[3], /stripe-signature/);
-  assert.match(sources[3], /process_stripe_billing_event/);
+  assert.match(sources[3], /process_guest_stripe_billing_event/);
   assert.doesNotMatch(sources.join('\n'), /console\.(log|error|warn)/);
 });
 

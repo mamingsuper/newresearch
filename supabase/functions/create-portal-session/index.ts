@@ -1,4 +1,4 @@
-const origins=new Set(['https://mamingsuper.github.io','http://localhost:3000','http://localhost:4173','http://localhost:8080']);
+const origins=new Set(['https://mamingsuper.github.io','http://localhost:3000','http://localhost:4173','http://localhost:8080','http://localhost:8443','http://127.0.0.1:8443']);
 const env=(name:string)=>{const value=Deno.env.get(name)?.trim();if(!value)throw new Error(`missing_${name}`);return value;};
 function headers(req:Request){const origin=req.headers.get('origin');const value=new Headers({'content-type':'application/json; charset=utf-8','cache-control':'no-store','access-control-allow-methods':'POST, OPTIONS','access-control-allow-headers':'authorization, content-type','vary':'Origin'});if(origin&&origins.has(origin))value.set('access-control-allow-origin',origin);return value;}
 const json=(req:Request,data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:headers(req)});

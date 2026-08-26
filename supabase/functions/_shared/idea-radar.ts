@@ -1,7 +1,12 @@
+import { createApodexResearch, type ApodexPaper } from './apodex-research.ts';
+import { anonymousOwnerKey, validAnonymousId } from './request-identity.ts';
+
 const ALLOWED_ORIGINS = new Set([
   'https://mamingsuper.github.io',
   'http://localhost:3000',
   'http://127.0.0.1:3000',
+  'http://localhost:8443',
+  'http://127.0.0.1:8443',
 ]);
 
 const MAX_BODY_BYTES = 32 * 1024;
@@ -11,7 +16,6 @@ const EMBEDDING_MODEL = 'text-embedding-3-small';
 const EMBEDDING_DIMENSIONS = 512;
 const ANALYSIS_MODEL = 'gpt-5-mini';
 const ANALYSIS_MAX_OUTPUT_TOKENS = 1800;
-const MATCH_COUNT = 20;
 
 const nullableString = { anyOf: [{ type: 'string', maxLength: 160 }, { type: 'null' }] };
 
@@ -108,6 +112,39 @@ type EvidenceRow = Record<string, unknown> & {
   title: string;
   abstract: string;
   source_url: string;
+};
+
+type UserAttachment = {
+  attachmentId: string;
+  name: string;
+  kind: 'pdf' | 'markdown' | 'text';
+  text: string;
+};
+
+export type AnalysisModelKey = 'default' | 'super_apodex';
+
+export type AnalysisRequest = {
+  idea: string;
+  model: AnalysisModelKey;
+  effort: 'standard' | 'high';
+  matchCount: 5 | 10 | 20 | 100 | null;
+  anonymousId: string | null;
+  attachmentIds: string[];
+  clientRequestId: string;
+  externalProcessingConsent: boolean;
+};
+
+type AnalysisAuthorization = {
+  allowed: boolean;
+  errorCode: string | null;
+  plan: 'anonymous' | 'free' | 'pro';
+  model: AnalysisModelKey;
+  matchCount: 5 | 10 | 20 | 100;
+  jobId: string | null;
+  remaining: number | null;
+  superRemaining: number;
+  superMonthlyLimit: number;
+  retryAfterSeconds: number;
 };
 
 function env(name: string): string {
@@ -224,20 +261,169 @@ async function authenticatedUserId(req: Request): Promise<string | null> {
   return typeof user?.id === 'string' && user.id ? user.id : null;
 }
 
-async function consumeEntitlement(userId: string): Promise<{ allowed: boolean; plan: string; remaining: number | null; retryAfterSeconds: number }> {
-  const raw = await rpc('consume_analysis_entitlement', { target_user_id: userId });
+async function authorizeAnalysisRequest(userId: string, request: AnalysisRequest): Promise<AnalysisAuthorization> {
+  const raw = await rpc('authorize_analysis_request', {
+    target_user_id: userId,
+    target_model_key: request.model,
+    target_match_count: request.matchCount,
+    target_client_request_id: request.clientRequestId,
+    target_idea: request.idea,
+  });
   const row = Array.isArray(raw) ? raw[0] : raw;
   if (!row || typeof row !== 'object') throw new Error('invalid_entitlement_response');
   const result = row as Record<string, unknown>;
   return {
     allowed: result.allowed === true,
+    errorCode: typeof result.error_code === 'string' ? result.error_code : null,
     plan: result.plan === 'pro' ? 'pro' : 'free',
+    model: result.model_key === 'super_apodex' ? 'super_apodex' : 'default',
+    matchCount: [20, 100].includes(Number(result.match_count))
+      ? Number(result.match_count) as 20 | 100
+      : 10,
+    jobId: typeof result.job_id === 'string' ? result.job_id : null,
     remaining: result.remaining === null ? null : Math.max(0, Number(result.remaining ?? 0)),
+    superRemaining: Math.max(0, Number(result.super_remaining ?? 0)),
+    superMonthlyLimit: Math.max(0, Number(result.super_monthly_limit ?? 0)),
     retryAfterSeconds: Math.max(0, Number(result.retry_after_seconds ?? 0)),
   };
 }
 
-async function readIdea(req: Request): Promise<string> {
+async function authorizeAnonymousAnalysis(ownerKey: string, request: AnalysisRequest): Promise<AnalysisAuthorization> {
+  const raw = await rpc('authorize_anonymous_analysis', {
+    target_owner_key: ownerKey,
+    target_client_request_id: request.clientRequestId,
+  });
+  const row = Array.isArray(raw) ? raw[0] : raw;
+  if (!row || typeof row !== 'object') throw new Error('invalid_anonymous_entitlement_response');
+  const result = row as Record<string, unknown>;
+  return {
+    allowed: result.allowed === true,
+    errorCode: typeof result.error_code === 'string' ? result.error_code : null,
+    plan: 'anonymous',
+    model: 'default',
+    matchCount: 5,
+    jobId: null,
+    remaining: 0,
+    superRemaining: 0,
+    superMonthlyLimit: 0,
+    retryAfterSeconds: Math.max(0, Number(result.retry_after_seconds ?? 0)),
+  };
+}
+
+async function loadAnalysisAttachments(ownerKey: string, ids: string[]): Promise<UserAttachment[]> {
+  if (ids.length === 0) return [];
+  const raw = await rpc('get_analysis_attachments', {
+    target_owner_key: ownerKey,
+    target_attachment_ids: ids,
+  });
+  const rows = Array.isArray(raw) ? raw : [];
+  if (rows.length !== ids.length) throw new Error('invalid_analysis_attachments');
+  return rows.map((value) => {
+    const row = value as Record<string, unknown>;
+    const kind = row.kind === 'pdf' || row.kind === 'markdown' ? row.kind : 'text';
+    return {
+      attachmentId: String(row.attachmentId ?? ''),
+      name: String(row.name ?? ''),
+      kind,
+      text: String(row.text ?? '').slice(0, 120_000),
+    };
+  });
+}
+
+const ATTACHMENT_STOP_WORDS = new Set([
+  'about', 'after', 'also', 'among', 'because', 'before', 'between', 'could', 'from', 'have', 'into', 'more',
+  'other', 'paper', 'research', 'study', 'that', 'their', 'there', 'these', 'this', 'through', 'using', 'were', 'which',
+  'with', 'would',
+]);
+
+function attachmentSearchTerms(attachments: UserAttachment[]): string {
+  const frequencies = new Map<string, number>();
+  for (const attachment of attachments) {
+    for (const token of attachment.text.toLocaleLowerCase('en-US').match(/[\p{L}\p{N}][\p{L}\p{N}-]{3,39}/gu) ?? []) {
+      if (ATTACHMENT_STOP_WORDS.has(token) || /^\d+$/u.test(token)) continue;
+      frequencies.set(token, (frequencies.get(token) ?? 0) + 1);
+    }
+  }
+  return [...frequencies.entries()]
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .slice(0, 24)
+    .map(([token]) => token)
+    .join(' ');
+}
+
+export function parseAnalysisRequestBody(body: unknown): AnalysisRequest {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw new TypeError('invalid_request');
+  const record = body as Record<string, unknown>;
+  if (typeof record.idea !== 'string') throw new TypeError('invalid_request');
+  const idea = record.idea.trim();
+  if (idea.length < MIN_IDEA_LENGTH || idea.length > MAX_IDEA_LENGTH) {
+    throw new RangeError('invalid_idea_length');
+  }
+
+  const model = record.model === undefined || record.model === null || record.model === ''
+    ? 'default'
+    : record.model;
+  if (model !== 'default' && model !== 'super_apodex') throw new TypeError('invalid_analysis_options');
+
+  const effort = record.effort === undefined || record.effort === null || record.effort === ''
+    ? 'standard'
+    : record.effort;
+  if (effort !== 'standard' && effort !== 'high') throw new TypeError('invalid_analysis_options');
+
+  const anonymousId = record.anonymousId === undefined || record.anonymousId === null || record.anonymousId === ''
+    ? null
+    : String(record.anonymousId);
+  if (anonymousId !== null && !validAnonymousId(anonymousId)) throw new TypeError('invalid_analysis_options');
+
+  const attachmentIds = record.attachmentIds === undefined || record.attachmentIds === null
+    ? []
+    : record.attachmentIds;
+  if (!Array.isArray(attachmentIds)
+    || attachmentIds.length > (anonymousId ? 1 : 3)
+    || new Set(attachmentIds).size !== attachmentIds.length
+    || attachmentIds.some((value) => typeof value !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value))) {
+    throw new TypeError('invalid_analysis_options');
+  }
+
+  let matchCount: 5 | 10 | 20 | 100 | null = null;
+  if (record.matchCount !== undefined && record.matchCount !== null) {
+    const candidate = Number(record.matchCount);
+    if (!Number.isInteger(candidate) || ![5, 10, 20, 100].includes(candidate)) {
+      throw new TypeError('invalid_analysis_options');
+    }
+    matchCount = candidate as 5 | 10 | 20 | 100;
+  }
+
+  if (anonymousId && (model !== 'default' || (matchCount !== null && matchCount !== 5))) {
+    throw new TypeError('invalid_analysis_options');
+  }
+
+  const suppliedRequestId = record.clientRequestId;
+  const clientRequestId = suppliedRequestId === undefined || suppliedRequestId === null || suppliedRequestId === ''
+    ? crypto.randomUUID()
+    : String(suppliedRequestId).trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(clientRequestId)) {
+    throw new TypeError('invalid_analysis_options');
+  }
+
+  const externalProcessingConsent = record.externalProcessingConsent === true;
+  if (model === 'super_apodex' && !externalProcessingConsent) {
+    throw new TypeError('external_processing_consent_required');
+  }
+
+  return {
+    idea,
+    model,
+    effort,
+    matchCount: anonymousId ? 5 : matchCount,
+    anonymousId,
+    attachmentIds: attachmentIds as string[],
+    clientRequestId,
+    externalProcessingConsent,
+  };
+}
+
+async function readAnalysisRequest(req: Request): Promise<AnalysisRequest> {
   const text = await req.text();
   if (new TextEncoder().encode(text).byteLength > MAX_BODY_BYTES) throw new RangeError('body_too_large');
   let body: unknown;
@@ -246,10 +432,7 @@ async function readIdea(req: Request): Promise<string> {
   } catch {
     throw new TypeError('invalid_json');
   }
-  if (!body || typeof body !== 'object' || Array.isArray(body)) throw new TypeError('invalid_request');
-  const idea = String((body as Record<string, unknown>).idea ?? '').trim();
-  if (idea.length < MIN_IDEA_LENGTH || idea.length > MAX_IDEA_LENGTH) throw new RangeError('invalid_idea_length');
-  return idea;
+  return parseAnalysisRequestBody(body);
 }
 
 async function embedQuery(idea: string): Promise<number[]> {
@@ -270,14 +453,14 @@ async function embedQuery(idea: string): Promise<number[]> {
   return vector.map(Number);
 }
 
-async function hybridSearch(idea: string, queryEmbedding: number[]): Promise<EvidenceRow[]> {
+async function hybridSearch(idea: string, queryEmbedding: number[], matchCount: 5 | 10 | 20 | 100): Promise<EvidenceRow[]> {
   const rows = await rpc('hybrid_search_papers', {
     query_text: idea,
     query_embedding: queryEmbedding,
-    match_count: 20,
+    match_count: matchCount,
   });
   if (!Array.isArray(rows)) throw new Error('invalid_hybrid_search_response');
-  return rows.slice(0, MATCH_COUNT) as EvidenceRow[];
+  return rows.slice(0, matchCount) as EvidenceRow[];
 }
 
 function excerpt(value: unknown, maxLength = 300): string {
@@ -374,7 +557,12 @@ function extractOutputText(payload: unknown): string | null {
   return null;
 }
 
-async function analyzeWithOpenAI(idea: string, rows: EvidenceRow[], stats: CorpusStats): Promise<Record<string, unknown>> {
+async function analyzeWithOpenAI(
+  idea: string,
+  rows: EvidenceRow[],
+  stats: CorpusStats,
+  effort: AnalysisRequest['effort'],
+): Promise<Record<string, unknown>> {
   const instructions = [
     'You are an evidence-grounded research-frontier analyst for social-science researchers.',
     'Use only the supplied conference records as factual evidence.',
@@ -395,7 +583,7 @@ async function analyzeWithOpenAI(idea: string, rows: EvidenceRow[], stats: Corpu
     },
     body: JSON.stringify({
       model: ANALYSIS_MODEL,
-      reasoning: { effort: 'minimal' },
+      reasoning: { effort: effort === 'high' ? 'medium' : 'minimal' },
       store: false,
       max_output_tokens: 1800,
       input: [
@@ -477,7 +665,10 @@ function groundClosestWork(report: Record<string, unknown>, rows: EvidenceRow[])
 
 function safeErrorStatus(error: unknown): { status: number; code: string; message: string } {
   const text = error instanceof Error ? error.message : '';
-  if (['body_too_large', 'invalid_json', 'invalid_request', 'invalid_idea_length'].includes(text)) {
+  if (text === 'corpus_not_ready') {
+    return { status: 503, code: 'CORPUS_NOT_READY', message: 'The conference corpus is temporarily unavailable.' };
+  }
+  if (['body_too_large', 'invalid_json', 'invalid_request', 'invalid_idea_length', 'invalid_analysis_options', 'external_processing_consent_required'].includes(text)) {
     return { status: 400, code: 'INVALID_REQUEST', message: 'Please provide a research idea between 20 and 5000 characters.' };
   }
   if (text.startsWith('embedding_provider_429') || text.startsWith('analysis_provider_429')) {
@@ -492,10 +683,19 @@ export async function handleAnalyzeRequest(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(origin, 'POST, OPTIONS') });
   if (req.method !== 'POST') return jsonResponse({ error: { code: 'METHOD_NOT_ALLOWED', message: 'Use POST for this endpoint.' } }, 405, origin, 'no-store', { Allow: 'POST, OPTIONS' });
 
+  let authorizedJob: { userId: string; jobId: string } | null = null;
+  let authorizedAnonymous: { ownerKey: string; clientRequestId: string } | null = null;
   try {
-    const idea = await readIdea(req);
+    const analysisRequest = await readAnalysisRequest(req);
+    const { idea } = analysisRequest;
     const userId = await authenticatedUserId(req);
-    if (!userId) return jsonResponse({ error: { code: 'AUTH_REQUIRED', message: 'Sign in to analyze a research idea.' } }, 401, origin);
+    if (!userId && req.headers.has('authorization')) {
+      return jsonResponse({ error: { code: 'AUTH_REQUIRED', message: 'Sign in again to continue.' } }, 401, origin);
+    }
+    if (!userId && !analysisRequest.anonymousId) {
+      return jsonResponse({ error: { code: 'AUTH_REQUIRED', message: 'An anonymous preview identity is required.' } }, 401, origin);
+    }
+    if (userId && analysisRequest.anonymousId) throw new TypeError('invalid_analysis_options');
     const limit = await consumeRateLimit(req);
     if (!limit.allowed) {
       return jsonResponse(
@@ -506,28 +706,172 @@ export async function handleAnalyzeRequest(req: Request): Promise<Response> {
         { 'Retry-After': String(limit.retryAfterSeconds) },
       );
     }
-    const entitlement = await consumeEntitlement(userId);
+    const ownerKey = userId
+      ? `user:${userId}`
+      : await anonymousOwnerKey(req, analysisRequest.anonymousId as string, env('RATE_LIMIT_HMAC_KEY'));
+    const entitlement = userId
+      ? await authorizeAnalysisRequest(userId, analysisRequest)
+      : await authorizeAnonymousAnalysis(ownerKey, analysisRequest);
     if (!entitlement.allowed) {
+      const code = entitlement.errorCode || 'ANALYSIS_NOT_ALLOWED';
+      const status = ['DAILY_LIMIT_REACHED', 'SUPER_LIMIT_REACHED', 'ANONYMOUS_PREVIEW_USED'].includes(code) ? 429
+        : code === 'PRO_REQUIRED' ? 403
+        : 400;
+      const message = code === 'PRO_REQUIRED'
+        ? 'Upgrade to Pro to use SUPER deep research.'
+        : code === 'SUPER_LIMIT_REACHED'
+          ? 'Your monthly SUPER research allowance is used.'
+          : code === 'ANONYMOUS_PREVIEW_USED'
+            ? 'Your anonymous preview is used. Sign in to continue with daily analysis, saved papers, and history.'
+          : code === 'DAILY_LIMIT_REACHED'
+            ? 'Your free daily analysis is used. Upgrade to Pro or try again tomorrow.'
+            : 'The selected analysis options are not available.';
       return jsonResponse(
-        { error: { code: 'DAILY_LIMIT_REACHED', message: 'Your free daily analysis is used. Upgrade to Pro or try again tomorrow.' } },
-        429,
+        { error: { code, message } },
+        status,
         origin,
         'no-store',
-        { 'Retry-After': String(entitlement.retryAfterSeconds) },
+        entitlement.retryAfterSeconds > 0 ? { 'Retry-After': String(entitlement.retryAfterSeconds) } : {},
       );
     }
+    let existingRecord: Record<string, unknown> | null = null;
+    if (userId) {
+      if (!entitlement.jobId) throw new Error('missing_analysis_job');
+      authorizedJob = { userId, jobId: entitlement.jobId };
+      const existingRaw = await rpc('get_analysis_job', {
+        target_user_id: userId,
+        target_job_id: entitlement.jobId,
+      });
+      const existing = Array.isArray(existingRaw) ? existingRaw[0] : existingRaw;
+      existingRecord = existing && typeof existing === 'object' ? existing as Record<string, unknown> : null;
+      if (existingRecord?.status === 'completed' && existingRecord.result) {
+        return jsonResponse({
+          data: existingRecord.result,
+          meta: {
+            jobId: entitlement.jobId,
+            plan: entitlement.plan,
+            model: entitlement.model,
+            matchCount: entitlement.matchCount,
+            remaining: entitlement.remaining,
+            superRemaining: entitlement.superRemaining,
+            superMonthlyLimit: entitlement.superMonthlyLimit,
+            cached: true,
+          },
+        }, 200, origin);
+      }
+      if (entitlement.model === 'super_apodex'
+        && existingRecord?.status === 'researching'
+        && typeof existingRecord.provider_response_id === 'string') {
+        return jsonResponse({
+          data: {
+            jobId: entitlement.jobId,
+            status: 'researching',
+            model: entitlement.model,
+            matchCount: entitlement.matchCount,
+            superRemaining: entitlement.superRemaining,
+          },
+        }, 202, origin);
+      }
+    } else {
+      authorizedAnonymous = { ownerKey, clientRequestId: analysisRequest.clientRequestId };
+    }
 
+    const attachments = await loadAnalysisAttachments(ownerKey, analysisRequest.attachmentIds);
     const stats = await getCorpusStats();
-    if (!stats.ready) return jsonResponse({ error: { code: 'CORPUS_NOT_READY', message: 'The conference corpus is temporarily unavailable.' } }, 503, origin);
+    if (!stats.ready) throw new Error('corpus_not_ready');
     const queryEmbedding = await embedQuery(idea);
-    const rows = await hybridSearch(idea, queryEmbedding);
-    if (rows.length === 0) return jsonResponse({ data: emptyEvidenceReport(idea, stats) }, 200, origin);
-    const report = await analyzeWithOpenAI(idea, rows, stats);
-    return jsonResponse({ data: groundClosestWork(report, rows) }, 200, origin);
+    const localTerms = attachmentSearchTerms(attachments);
+    const rows = await hybridSearch([idea, localTerms].filter(Boolean).join(' '), queryEmbedding, entitlement.matchCount);
+    const retrievedPapers = evidenceBundle(rows);
+    if (userId && entitlement.jobId) {
+      await rpc('set_analysis_job_context', {
+        target_user_id: userId,
+        target_job_id: entitlement.jobId,
+        target_retrieved_papers: retrievedPapers,
+      });
+    }
+    if (entitlement.model === 'super_apodex') {
+      if (!analysisRequest.externalProcessingConsent) {
+        throw new Error('external_processing_consent_required');
+      }
+      const providerJob = await createApodexResearch({
+        idea,
+        papers: retrievedPapers as ApodexPaper[],
+      });
+      await rpc('set_analysis_job_provider', {
+        target_user_id: userId,
+        target_job_id: entitlement.jobId,
+        target_provider_response_id: providerJob.providerResponseId,
+      });
+      return jsonResponse({
+        data: {
+          jobId: entitlement.jobId,
+          status: 'researching',
+          model: entitlement.model,
+          matchCount: entitlement.matchCount,
+          superRemaining: entitlement.superRemaining,
+        },
+      }, 202, origin);
+    }
+
+    const meta = {
+      jobId: entitlement.jobId ?? analysisRequest.clientRequestId,
+      plan: entitlement.plan,
+      model: entitlement.model,
+      matchCount: entitlement.matchCount,
+      remaining: entitlement.remaining,
+      superRemaining: entitlement.superRemaining,
+      superMonthlyLimit: entitlement.superMonthlyLimit,
+      cached: false,
+    };
+    if (rows.length === 0) {
+      const emptyReport = emptyEvidenceReport(idea, stats);
+      if (userId && entitlement.jobId) {
+        await rpc('complete_analysis_job', { target_user_id: userId, target_job_id: entitlement.jobId, target_result: emptyReport });
+      } else {
+        await rpc('complete_anonymous_analysis', { target_owner_key: ownerKey, target_client_request_id: analysisRequest.clientRequestId });
+      }
+      if (analysisRequest.attachmentIds.length) {
+        await rpc('consume_analysis_attachments', { target_owner_key: ownerKey, target_attachment_ids: analysisRequest.attachmentIds });
+      }
+      return jsonResponse({ data: emptyReport, meta }, 200, origin);
+    }
+    const report = await analyzeWithOpenAI(idea, rows, stats, analysisRequest.effort);
+    const groundedReport = groundClosestWork(report, rows);
+    if (userId && entitlement.jobId) {
+      await rpc('complete_analysis_job', { target_user_id: userId, target_job_id: entitlement.jobId, target_result: groundedReport });
+    } else {
+      await rpc('complete_anonymous_analysis', { target_owner_key: ownerKey, target_client_request_id: analysisRequest.clientRequestId });
+    }
+    if (analysisRequest.attachmentIds.length) {
+      await rpc('consume_analysis_attachments', { target_owner_key: ownerKey, target_attachment_ids: analysisRequest.attachmentIds });
+    }
+    return jsonResponse({ data: groundedReport, meta }, 200, origin);
   } catch (error) {
+    if (authorizedJob) {
+      try {
+        await rpc('fail_analysis_job', {
+          target_user_id: authorizedJob.userId,
+          target_job_id: authorizedJob.jobId,
+          target_error_code: 'ANALYSIS_FAILED',
+        });
+      } catch {
+        // The safe client error below remains authoritative if persistence is unavailable.
+      }
+    }
+    if (authorizedAnonymous) {
+      try {
+        await rpc('release_anonymous_analysis', {
+          target_owner_key: authorizedAnonymous.ownerKey,
+          target_client_request_id: authorizedAnonymous.clientRequestId,
+        });
+      } catch {
+        // A short reservation expiry still allows retry if cleanup is unavailable.
+      }
+    }
     const safe = safeErrorStatus(error);
     return jsonResponse({ error: { code: safe.code, message: safe.message } }, safe.status, origin);
   }
 }
 
-export { ALLOWED_ORIGINS, REPORT_JSON_SCHEMA };
+export { ALLOWED_ORIGINS, REPORT_JSON_SCHEMA, authenticatedUserId, rpc };

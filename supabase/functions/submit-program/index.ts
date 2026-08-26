@@ -1,4 +1,5 @@
 import { validateFileDescriptor, validateSubmission } from '../_shared/program-submission.ts';
+import { networkRateLimitKey } from '../_shared/request-identity.ts';
 
 const MAX_BODY_BYTES = 64 * 1024;
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
@@ -39,6 +40,8 @@ type SubmitDependencies = {
   authenticate: (token: string) => Promise<{ id?: string } | null>;
   inspectStorage: (path: string) => Promise<StorageInspection | null>;
   persist: (values: Record<string, unknown>) => Promise<PersistedSubmission>;
+  rateLimit: (req: Request) => Promise<{ allowed: boolean; retryAfterSeconds: number }>;
+  persistAnonymous: (values: Record<string, unknown>) => Promise<PersistedSubmission>;
   randomUUID?: () => string;
 };
 
@@ -75,10 +78,9 @@ function json(data: unknown, status: number, origin: string | null, allowedOrigi
   return new Response(JSON.stringify(data), { status, headers });
 }
 
-function bearer(req: Request): string {
+function bearer(req: Request): string | null {
   const match = req.headers.get('authorization')?.match(/^Bearer\s+([^\s]+)$/i);
-  if (!match) fail(401, 'AUTH_REQUIRED');
-  return match[1];
+  return match?.[1] ?? null;
 }
 
 async function readBody(req: Request): Promise<Record<string, unknown>> {
@@ -175,8 +177,9 @@ export async function handleSubmitProgramRequest(req: Request, dependencies: Sub
   }
 
   try {
-    const user = await authenticate(bearer(req));
-    if (!user?.id || !UUID_PATTERN.test(user.id)) fail(401, 'AUTH_REQUIRED');
+    const token = bearer(req);
+    const user = token ? await authenticate(token) : null;
+    if (token && (!user?.id || !UUID_PATTERN.test(user.id))) fail(401, 'AUTH_REQUIRED');
     const body = await readBody(req);
     let submission: ReturnType<typeof validateSubmission>;
     try {
@@ -184,6 +187,36 @@ export async function handleSubmitProgramRequest(req: Request, dependencies: Sub
     } catch (error) {
       if (error instanceof TypeError) fail(400, 'INVALID_REQUEST');
       throw error;
+    }
+    if (!user?.id) {
+      if (submission.kind !== 'url') fail(401, 'AUTH_REQUIRED');
+      const limit = await dependencies.rateLimit(req);
+      if (!limit.allowed) {
+        return json(
+          { error: { code: 'RATE_LIMITED', message: 'Too many submissions. Try again shortly.' } },
+          429,
+          origin,
+          allowedOrigins,
+          { 'Retry-After': String(limit.retryAfterSeconds) },
+        );
+      }
+      const submissionId = randomUUID();
+      if (!UUID_PATTERN.test(submissionId)) throw new Error('invalid_generated_submission_id');
+      const persisted = await dependencies.persistAnonymous({
+        target_submission_id: submissionId,
+        target_conference_slug: conferenceSlug(submission.acronym, submission.year),
+        target_conference_name: submission.conferenceName,
+        target_conference_acronym: submission.acronym,
+        target_conference_year: submission.year,
+        target_discipline: submission.discipline,
+        target_official_conference_url: submission.officialConferenceUrl,
+        target_notes: submission.notes,
+        target_program_url: submission.programUrl,
+      });
+      if (persisted.id !== submissionId || persisted.status !== 'submitted' || !Number.isFinite(Date.parse(persisted.submittedAt))) {
+        throw new Error('invalid_persistence_result');
+      }
+      return json({ data: { submissionId: persisted.id, status: 'submitted', submittedAt: persisted.submittedAt } }, 201, origin, allowedOrigins);
     }
     const submissionId = submission.kind === 'file'
       ? await verifyFile(submission, user.id, inspectStorage)
@@ -245,6 +278,8 @@ const ALLOWED_ORIGINS = new Set([
   'https://mamingsuper.github.io',
   'http://localhost:3000',
   'http://127.0.0.1:3000',
+  'http://localhost:8443',
+  'http://127.0.0.1:8443',
 ]);
 
 function edgeEnvironment(name: string): string {
@@ -305,6 +340,22 @@ async function productionHandler(req: Request): Promise<Response> {
         status: String(data.status ?? ''),
         submittedAt: String(data.submittedAt ?? ''),
       };
+    },
+    async rateLimit(request) {
+      const clientHash = await networkRateLimitKey(request, edgeEnvironment('RATE_LIMIT_HMAC_KEY'));
+      const { data, error } = await serviceClient.rpc('consume_beta_rate_limit', { client_hash: clientHash });
+      if (error) throw new Error('rate_limit_unavailable');
+      const row = Array.isArray(data) ? data[0] : data;
+      return {
+        allowed: row?.allowed === true,
+        retryAfterSeconds: Math.max(0, Number(row?.retry_after_seconds ?? 0)),
+      };
+    },
+    async persistAnonymous(values) {
+      const { data, error } = await serviceClient.rpc('create_anonymous_program_submission', values);
+      if (error) throw Object.assign(new Error('anonymous_submission_persistence_failed'), { code: error.code });
+      if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('anonymous_submission_persistence_failed');
+      return { id: String(data.id ?? ''), status: String(data.status ?? ''), submittedAt: String(data.submittedAt ?? '') };
     },
   });
 }

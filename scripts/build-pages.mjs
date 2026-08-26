@@ -5,12 +5,14 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const publicDir = path.join(root, 'public');
+const frontendDist = path.join(root, 'frontend', 'dist');
 const outputDir = path.join(root, 'pages-dist');
 const configToken = '__PUBLIC_SUPABASE_PUBLISHABLE_KEY__';
 const publishableKey = process.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ?? '';
 const textExtensions = new Set(['.html', '.css', '.js', '.json', '.txt', '.svg']);
 const secretPatterns = [
   /OPENAI_API_KEY/i,
+  /APODEX_API_KEY/i,
   /SUPABASE_(?:SECRET|SERVICE_ROLE)_KEY/i,
   /RATE_LIMIT_HMAC_KEY/i,
   /sb_secret_[A-Za-z0-9_-]+/i,
@@ -39,9 +41,8 @@ if (configTemplate.split(configToken).length !== 2) {
 
 await rm(outputDir, { recursive: true, force: true });
 await mkdir(outputDir, { recursive: true });
-await cp(publicDir, outputDir, {
+await cp(frontendDist, outputDir, {
   recursive: true,
-  filter: (source) => path.basename(source) !== 'config.template.js',
 });
 await writeFile(path.join(outputDir, 'config.js'), configTemplate.replace(configToken, publishableKey), 'utf8');
 await writeFile(path.join(outputDir, '.nojekyll'), '', 'utf8');
@@ -63,7 +64,7 @@ for (const file of files) {
   }
 }
 
-for (const required of ['index.html', 'styles.css', 'config.js', 'app.js', '.nojekyll']) {
+for (const required of ['index.html', 'config.js', '.nojekyll']) {
   if (!files.some((file) => path.relative(outputDir, file) === required)) {
     throw new Error(`Pages artifact is missing ${required}`);
   }

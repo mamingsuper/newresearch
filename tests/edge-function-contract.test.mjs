@@ -23,14 +23,14 @@ test('analyze-idea Edge Function enforces the public beta evidence contract', as
   assert.match(source, /SHA-256/i);
   assert.match(source, /RATE_LIMIT_HMAC_KEY/);
   assert.match(source, /consume_beta_rate_limit/);
-  assert.match(source, /consume_analysis_entitlement/);
+  assert.match(source, /authorize_analysis_request/);
   assert.match(source, /AUTH_REQUIRED/);
   assert.match(source, /DAILY_LIMIT_REACHED/);
   assert.match(source, /authorization, content-type/i);
   assert.match(source, /text-embedding-3-small/);
   assert.match(source, /dimensions\s*:\s*512/);
-  assert.match(source, /match_count\s*:\s*20/);
-  assert.doesNotMatch(source, /match_count\s*:\s*12/);
+  assert.match(source, /match_count\s*:\s*matchCount/);
+  assert.match(source, /\[5,\s*10,\s*20,\s*100\]/);
   assert.match(source, /relatedPapers/);
   assert.match(source, /authorYearLabel/);
   assert.match(source, /abstract:\s*String\(row\.abstract/);
@@ -40,7 +40,7 @@ test('analyze-idea Edge Function enforces the public beta evidence contract', as
   assert.match(source, /evidenceReferences/);
   assert.match(source, /gpt-5-mini/);
   assert.match(source, /max_output_tokens\s*:\s*1800/);
-  assert.match(source, /reasoning\s*:\s*\{\s*effort\s*:\s*['"]minimal['"]\s*\}/);
+  assert.match(source, /reasoning\s*:\s*\{\s*effort\s*:\s*effort\s*===\s*['"]high['"]\s*\?\s*['"]medium['"]\s*:\s*['"]minimal['"]\s*\}/);
   assert.match(source, /store\s*:\s*false/);
   assert.match(source, /json_schema/);
   assert.match(source, /strict\s*:\s*true/);

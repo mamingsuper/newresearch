@@ -33,15 +33,16 @@ test('Pages builder emits a subpath-safe static artifact and scans for secrets',
   ]);
   const pkg = JSON.parse(packageSource);
 
-  assert.equal(pkg.scripts['pages:build'], 'npm run browser:vendor && node scripts/build-pages.mjs');
+  assert.equal(pkg.scripts['pages:build'], 'npm run browser:vendor && npm run frontend:build && node scripts/build-pages.mjs');
   assert.match(builder, /pages-dist/);
-  assert.match(builder, /public/);
+  assert.match(builder, /frontendDist/);
   assert.match(builder, /\.nojekyll/);
   assert.match(builder, /root-absolute|absolute asset|href=|src=/i);
   assert.match(builder, /OPENAI_API_KEY|sb_secret_|SERVICE_ROLE|RATE_LIMIT_HMAC_KEY/i);
 });
 
 test('Pages builder reports the actual artifact file count', async () => {
+  await execFileAsync('npm', ['run', 'frontend:build'], { cwd: root });
   const { stdout } = await execFileAsync(process.execPath, ['scripts/build-pages.mjs'], {
     cwd: new URL('../', import.meta.url),
     env: buildEnv('sb_publishable_test'),
@@ -63,7 +64,7 @@ test('Pages builder reports the actual artifact file count', async () => {
   assert.match(config, /supabaseUrl:\s*'https:\/\/euptkcjwunpnwiqejtru\.supabase\.co'/);
   assert.match(config, /supabasePublishableKey:\s*'sb_publishable_test'/);
   assert.doesNotMatch(config, /__PUBLIC_SUPABASE_PUBLISHABLE_KEY__/);
-  assert.ok(await readFile(new URL('vendor/supabase-2.112.3.js', output)));
+  assert.ok((await readdir(new URL('assets/', output))).some((name) => name.endsWith('.js')));
 });
 
 test('Pages builder rejects missing and secret-shaped credentials', async () => {

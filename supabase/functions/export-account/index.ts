@@ -1,4 +1,4 @@
-const allowedOrigins=new Set(['https://mamingsuper.github.io','http://localhost:3000','http://localhost:4173','http://localhost:8080']);
+const allowedOrigins=new Set(['https://mamingsuper.github.io','http://localhost:3000','http://localhost:4173','http://localhost:8080','http://localhost:8443','http://127.0.0.1:8443']);
 function responseHeaders(req:Request,extra:HeadersInit={}){const origin=req.headers.get('origin');const headers=new Headers({'content-type':'application/json; charset=utf-8','cache-control':'no-store','access-control-allow-methods':'GET, OPTIONS','access-control-allow-headers':'authorization, content-type','vary':'Origin',...Object.fromEntries(new Headers(extra))});if(origin&&allowedOrigins.has(origin))headers.set('access-control-allow-origin',origin);return headers;}
 const json=(data:unknown,status=200,req:Request,extra:HeadersInit={})=>new Response(JSON.stringify(data,null,2),{status,headers:responseHeaders(req,extra)});
 export async function handleExportAccountRequest(req:Request,deps:any){

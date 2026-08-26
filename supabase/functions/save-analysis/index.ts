@@ -5,6 +5,8 @@ const ALLOWED_ORIGINS = new Set([
   'https://mamingsuper.github.io',
   'http://localhost:3000',
   'http://127.0.0.1:3000',
+  'http://localhost:8443',
+  'http://127.0.0.1:8443',
 ]);
 
 function env(name: string): string {

@@ -1,5 +1,5 @@
 function issuedAt(token:string){try{return Number(JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).iat);}catch{return 0;}}
-const allowedOrigins=new Set(['https://mamingsuper.github.io','http://localhost:3000','http://localhost:4173','http://localhost:8080']);
+const allowedOrigins=new Set(['https://mamingsuper.github.io','http://localhost:3000','http://localhost:4173','http://localhost:8080','http://localhost:8443','http://127.0.0.1:8443']);
 function responseHeaders(req:Request,extra:HeadersInit={}){const origin=req.headers.get('origin');const headers=new Headers({'cache-control':'no-store','access-control-allow-methods':'POST, OPTIONS','access-control-allow-headers':'authorization, content-type','vary':'Origin',...Object.fromEntries(new Headers(extra))});if(origin&&allowedOrigins.has(origin))headers.set('access-control-allow-origin',origin);return headers;}
 export async function handleDeleteAccountRequest(req:Request,deps:any){
   const origin=req.headers.get('origin');const headers=responseHeaders(req);if(origin&&!allowedOrigins.has(origin))return new Response(null,{status:403,headers});if(req.method==='OPTIONS')return new Response(null,{status:204,headers});if(req.method!=='POST')return new Response(null,{status:405,headers:responseHeaders(req,{allow:'POST, OPTIONS'})});

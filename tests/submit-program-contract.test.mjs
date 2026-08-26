@@ -74,18 +74,52 @@ function deps(overrides = {}) {
       status: 'submitted',
       submittedAt: '2026-08-23T12:00:00.000Z',
     }),
+    rateLimit: async () => ({ allowed: true, retryAfterSeconds: 0 }),
+    persistAnonymous: async (values) => ({
+      id: values.target_submission_id,
+      status: 'submitted',
+      submittedAt: '2026-08-23T12:00:00.000Z',
+    }),
     randomUUID: () => SUBMISSION_ID,
     ...overrides,
   };
 }
 
-test('submit boundary requires verified JWT owner and rejects body owner fields', async () => {
+test('submit boundary accepts an anonymous URL without contact data and rejects body owner fields', async () => {
   let persisted = 0;
-  const options = deps({ persist: async () => { persisted += 1; throw new Error('unexpected'); } });
-  assert.equal((await handleSubmitProgramRequest(request(urlInput(), ''), options)).status, 401);
+  const options = deps({
+    persist: async () => { persisted += 1; throw new Error('unexpected'); },
+    persistAnonymous: async (values) => ({ id: values.target_submission_id, status: 'submitted', submittedAt: '2026-08-23T12:00:00.000Z' }),
+  });
+  assert.equal((await handleSubmitProgramRequest(request(urlInput(), ''), options)).status, 201);
   assert.equal((await handleSubmitProgramRequest(request(urlInput({ userId: USER_ID })), options)).status, 400);
   assert.equal((await handleSubmitProgramRequest(request(urlInput({ user_id: USER_ID })), options)).status, 400);
   assert.equal(persisted, 0);
+});
+
+test('anonymous URL submission is rate limited and persists no contact data', async () => {
+  const calls = [];
+  const response = await handleSubmitProgramRequest(request(urlInput(), ''), deps({
+    authenticate: async () => null,
+    persistAnonymous: async (values) => {
+      calls.push(values);
+      return { id: SUBMISSION_ID, status: 'submitted', submittedAt: '2026-08-23T12:00:00.000Z' };
+    },
+  }));
+  assert.equal(response.status, 201);
+  assert.equal(calls[0].target_program_url, 'https://program.icahdq.org/2026');
+  assert.equal(calls[0].target_user_id, undefined);
+  assert.equal(Object.keys(calls[0]).some((key) => key.toLowerCase().includes('contact') || key.toLowerCase().includes('email')), false);
+
+  const blocked = await handleSubmitProgramRequest(request(urlInput(), ''), deps({
+    authenticate: async () => null,
+    rateLimit: async () => ({ allowed: false, retryAfterSeconds: 30 }),
+  }));
+  assert.equal(blocked.status, 429);
+  assert.equal(blocked.headers.get('retry-after'), '30');
+
+  const anonymousFile = await fileInput();
+  assert.equal((await handleSubmitProgramRequest(request(anonymousFile, ''), deps({ authenticate: async () => null }))).status, 401);
 });
 
 test('URL submission never inspects or fetches the remote source and persists only verified owner data', async () => {
