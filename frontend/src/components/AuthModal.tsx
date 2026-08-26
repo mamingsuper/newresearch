@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { X, EnvelopeSimple, CheckCircle, Warning } from "@phosphor-icons/react";
 import { useApp } from "../context/AppContext";
 import { t } from "../i18n";
 import { auth } from "../adapters/auth";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 interface Props { onClose: () => void; }
 type Stage = "idle" | "sending" | "sent" | "google_loading" | "error";
@@ -24,13 +25,11 @@ export function AuthModal({ onClose }: Props) {
   const [stage, setStage] = useState<Stage>("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const emailRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const closeOnEscape = (event: KeyboardEvent) => event.key === "Escape" && onClose();
-    document.addEventListener("keydown", closeOnEscape);
-    emailRef.current?.focus();
-    return () => document.removeEventListener("keydown", closeOnEscape);
-  }, [onClose]);
+  const dialogRef = useFocusTrap<HTMLDivElement>({
+    initialFocusRef: emailRef,
+    lockBodyScroll: true,
+    onEscape: onClose,
+  });
 
   async function handleMagicLink(e: React.FormEvent) {
     e.preventDefault();
@@ -57,17 +56,15 @@ export function AuthModal({ onClose }: Props) {
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
         className="premium-modal w-full max-w-sm max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl p-7 relative anim-scale-in"
-        style={{ background: "var(--surface)", boxShadow: "var(--shadow-modal)" }}
         onClick={e => e.stopPropagation()}
         role="dialog" aria-modal="true" aria-label={t("auth_title", lang)}
+        tabIndex={-1}
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 rounded-[8px] cursor-pointer transition-colors"
-          style={{ color: "var(--muted-c)" }}
-          onMouseEnter={e => e.currentTarget.style.background = "var(--surface-subtle)"}
-          onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+          className="modal-close absolute top-4 right-4 p-1.5 rounded-[8px] cursor-pointer"
           aria-label={t("close", lang)}
         >
           <X size={17} />
@@ -75,7 +72,7 @@ export function AuthModal({ onClose }: Props) {
 
         {/* Brand mark */}
         <div className="flex items-center gap-2.5 mb-5">
-          <div className="w-8 h-8 rounded-[9px] flex items-center justify-center" style={{ background: "var(--accent-c)", color: "#fff" }}>
+          <div className="brand-mark modal-brand-mark">
             <svg width="18" height="18" viewBox="0 0 28 28" fill="none">
               <circle cx="14" cy="14" r="12" stroke="currentColor" strokeWidth="1.5" opacity="0.3"/>
               <circle cx="14" cy="14" r="7" stroke="currentColor" strokeWidth="1.5" opacity="0.6"/>
@@ -103,10 +100,7 @@ export function AuthModal({ onClose }: Props) {
             <button
               onClick={handleGoogle}
               disabled={stage === "google_loading" || stage === "sending"}
-              className="flex items-center justify-center gap-2.5 w-full py-2.5 rounded-[10px] text-sm font-semibold border cursor-pointer transition-colors mb-4 disabled:opacity-50"
-              style={{ borderColor: "var(--border-c)", background: "var(--surface-subtle)", color: "var(--ink)" }}
-              onMouseEnter={e => e.currentTarget.style.background = "var(--canvas)"}
-              onMouseLeave={e => e.currentTarget.style.background = "var(--surface-subtle)"}
+              className="surface-action surface-action-raised flex items-center justify-center gap-2.5 w-full py-2.5 rounded-[10px] text-sm font-semibold border cursor-pointer mb-4 disabled:opacity-50"
             >
               <GoogleIcon />
               {stage === "google_loading" ? t("loading", lang) : t("auth_google", lang)}

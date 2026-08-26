@@ -3,6 +3,8 @@ import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 
 await rm('dist', { recursive: true, force: true });
 await mkdir('dist', { recursive: true });
+// The root Node.js bundle intentionally retains the deprecated vanilla UI in public/.
+// GitHub Pages is built independently from frontend/ by scripts/build-pages.mjs.
 await Promise.all([
   cp('src', 'dist/src', { recursive: true }),
   cp('public', 'dist/public', { recursive: true }),

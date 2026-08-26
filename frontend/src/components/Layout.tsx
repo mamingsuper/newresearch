@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Crosshair, Books, BookmarkSimple, ChatTeardropText,
@@ -9,6 +9,8 @@ import { useApp } from "../context/AppContext";
 import { t } from "../i18n";
 import { AuthModal } from "./AuthModal";
 import { PaywallModal } from "./PaywallModal";
+import { useFocusTrap } from "../hooks/useFocusTrap";
+import { useReveal } from "../hooks/useReveal";
 
 const NAV = [
   { to: "/",              icon: Crosshair,         key: "nav_new_analysis"      as const },
@@ -42,21 +44,21 @@ function CorpusPill({ compact }: { compact?: boolean }) {
   const { lang } = useApp();
   if (compact) {
     return (
-      <div className="corpus-compact flex items-center gap-1.5 font-mono text-xs tabnum" style={{ color: "var(--success-c)" }}>
+      <div className="corpus-compact flex items-center gap-1.5 font-mono text-xs tabnum">
         <span className="live-dot" />
         <span className="corpus-compact-label">8,906 {t("corpus_papers_indexed", lang)}</span>
       </div>
     );
   }
   return (
-    <div className="rounded-[10px] p-3" style={{ background: "var(--surface-subtle)" }}>
+    <div className="corpus-status">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-xs font-semibold" style={{ color: "var(--success-c)" }}>
+        <span className="corpus-status-title text-xs font-semibold">
           {t("corpus_ready", lang)}
         </span>
         <span className="live-dot" />
       </div>
-      <p className="font-mono text-xs tabnum leading-snug" style={{ color: "var(--muted-c)" }}>
+      <p className="corpus-status-copy font-mono text-xs tabnum leading-snug">
         8,906 papers<br/>APSA 2026 · ICA 2026
       </p>
     </div>
@@ -71,15 +73,12 @@ function DesktopHeader() {
   return (
     <header className="desktop-header hidden lg:grid">
       <Link to="/" className="top-brand group">
-        <div
-          className="flex items-center justify-center w-9 h-9 rounded-[10px] flex-shrink-0"
-          style={{ background: "var(--accent-c)", color: "#fff" }}
-        >
+        <div className="brand-mark brand-mark-desktop">
           <RadarMark size={22} />
         </div>
         <div className="min-w-0">
-          <p className="font-semibold text-sm leading-tight tracking-tight" style={{ color: "var(--ink)" }}>Idea Radar</p>
-          <p className="text-xs leading-tight mt-0.5" style={{ color: "var(--muted-c)" }}>Research Intelligence</p>
+          <p className="brand-title font-semibold text-sm leading-tight tracking-tight">Idea Radar</p>
+          <p className="brand-subtitle text-xs leading-tight mt-0.5">Research Intelligence</p>
         </div>
       </Link>
 
@@ -139,14 +138,14 @@ function DesktopHeader() {
 }
 
 /* ── Mobile top bar ───────────────────────────────────────── */
-function TopBar({ onMenuOpen }: { onMenuOpen: () => void }) {
+function TopBar({ menuOpen, onMenuOpen }: { menuOpen: boolean; onMenuOpen: () => void }) {
   const { lang, user, setShowAuth } = useApp();
   return (
     <header
       className="mobile-topbar lg:hidden fixed top-0 inset-x-0 z-40 flex items-center gap-3 px-4 h-14"
     >
       <Link to="/" className="mobile-brand flex items-center gap-2 mr-auto">
-        <div className="w-7 h-7 rounded-[8px] flex items-center justify-center" style={{ background: "var(--accent-c)", color: "#fff" }}>
+        <div className="brand-mark brand-mark-mobile">
           <RadarMark size={18} />
         </div>
         <span className="mobile-brand-label font-semibold text-sm">Idea Radar</span>
@@ -155,24 +154,24 @@ function TopBar({ onMenuOpen }: { onMenuOpen: () => void }) {
       <CorpusPill compact />
 
       {user ? (
-        <Link to="/account" aria-label="Account" className="p-1.5" style={{ color: "var(--muted-c)" }}>
+        <Link to="/account" aria-label="Account" className="mobile-account p-1.5">
           <User size={18} />
         </Link>
       ) : (
         <button
           onClick={() => setShowAuth(true)}
           className="mobile-signin text-xs font-semibold px-3 py-1.5 rounded-[8px] cursor-pointer"
-          style={{ background: "var(--accent-c)", color: "#fff" }}
         >
           {t("nav_sign_in", lang)}
         </button>
       )}
       <button
         onClick={onMenuOpen}
-        className="p-1.5 rounded-[8px] cursor-pointer"
+        className="mobile-menu-trigger p-1.5 rounded-[8px] cursor-pointer"
         aria-label="Open menu"
         aria-controls="mobile-navigation"
-        style={{ color: "var(--muted-c)" }}
+        aria-expanded={menuOpen}
+        aria-haspopup="dialog"
       >
         <List size={20} />
       </button>
@@ -184,22 +183,31 @@ function TopBar({ onMenuOpen }: { onMenuOpen: () => void }) {
 function Drawer({ onClose }: { onClose: () => void }) {
   const { lang, setLang, darkMode, toggleDark, user, setShowAuth } = useApp();
   const location = useLocation();
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useFocusTrap<HTMLDivElement>({
+    initialFocusRef: closeButtonRef,
+    lockBodyScroll: true,
+    onEscape: onClose,
+  });
 
   return (
     <div
-      className="lg:hidden fixed inset-0 z-50 anim-fade-in"
-      style={{ background: "rgba(22,26,32,0.6)" }}
+      className="drawer-backdrop lg:hidden fixed inset-0 z-50 anim-fade-in"
       onClick={onClose}
     >
       <div
+        ref={drawerRef}
         id="mobile-navigation"
-        className="absolute right-0 top-0 bottom-0 flex flex-col anim-slide"
-        style={{ width: "min(320px, calc(100vw - 24px))", background: "var(--surface)" }}
+        className="drawer-panel absolute right-0 top-0 bottom-0 flex flex-col anim-slide"
         onClick={e => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={lang === "zh" ? "移动导航" : "Mobile navigation"}
+        tabIndex={-1}
       >
-        <div className="flex items-center justify-between px-4 h-14" style={{ borderBottom: "1px solid var(--border-c)" }}>
-          <span className="font-semibold text-sm">Navigation</span>
-          <button onClick={onClose} className="p-1.5 cursor-pointer" style={{ color: "var(--muted-c)" }} aria-label="Close">
+        <div className="drawer-header flex items-center justify-between px-4 h-14">
+          <span className="font-semibold text-sm">{lang === "zh" ? "导航" : "Navigation"}</span>
+          <button ref={closeButtonRef} onClick={onClose} className="drawer-close p-1.5 cursor-pointer" aria-label={t("close", lang)}>
             <X size={18} />
           </button>
         </div>
@@ -210,8 +218,7 @@ function Drawer({ onClose }: { onClose: () => void }) {
               <Link
                 key={to}
                 to={to}
-                className={`sidebar-link${active ? " active" : ""}`}
-                style={{ paddingTop: 10, paddingBottom: 10 }}
+                className={`sidebar-link drawer-nav-link${active ? " active" : ""}`}
                 onClick={onClose}
               >
                 <Icon size={16} weight={active ? "duotone" : "regular"} />
@@ -220,22 +227,19 @@ function Drawer({ onClose }: { onClose: () => void }) {
             );
           })}
         </nav>
-        <div className="px-3 pt-3 pb-5 space-y-2" style={{ borderTop: "1px solid var(--border-c)" }}>
+        <div className="drawer-footer px-3 pt-3 pb-5 space-y-2">
           <CorpusPill />
-          <div className="flex gap-1">
-            <button onClick={() => setLang(lang === "en" ? "zh" : "en")} className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-[9px] text-xs cursor-pointer" style={{ color: "var(--muted-c)" }}
-              onMouseEnter={e => e.currentTarget.style.background = "var(--surface-subtle)"}
-              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-            ><Globe size={13}/>{lang === "en" ? "中文" : "EN"}</button>
-            <button onClick={toggleDark} className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-[9px] text-xs cursor-pointer" style={{ color: "var(--muted-c)" }}
-              onMouseEnter={e => e.currentTarget.style.background = "var(--surface-subtle)"}
-              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-            >{darkMode ? <Sun size={13}/> : <Moon size={13}/>}{darkMode ? "Light" : "Dark"}</button>
+          <div className="drawer-utilities">
+            <button onClick={() => setLang(lang === "en" ? "zh" : "en")} className="drawer-utility text-xs">
+              <Globe size={13}/>{lang === "en" ? "中文" : "EN"}
+            </button>
+            <button onClick={toggleDark} className="drawer-utility text-xs">
+              {darkMode ? <Sun size={13}/> : <Moon size={13}/>}{darkMode ? "Light" : "Dark"}
+            </button>
           </div>
           {!user && (
             <button onClick={() => { setShowAuth(true); onClose(); }}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-[10px] text-sm font-semibold cursor-pointer"
-              style={{ background: "var(--accent-c)", color: "#fff" }}
+              className="drawer-signin w-full flex items-center justify-center gap-2 py-2.5 rounded-[10px] text-sm font-semibold cursor-pointer"
             ><SignIn size={15}/>{t("nav_sign_in", lang)}</button>
           )}
         </div>
@@ -249,16 +253,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { showAuth, setShowAuth, showPaywall, setShowPaywall } = useApp();
   const location = useLocation();
+  const routeRef = useRef<HTMLDivElement>(null);
+  useReveal(routeRef, location.pathname);
 
   return (
     <div className="app-shell flex flex-col overflow-hidden">
       <a href="#main-workspace" className="skip-link">Skip to content</a>
       <DesktopHeader />
-      <TopBar onMenuOpen={() => setDrawerOpen(true)} />
+      <TopBar menuOpen={drawerOpen} onMenuOpen={() => setDrawerOpen(true)} />
       {drawerOpen && <Drawer onClose={() => setDrawerOpen(false)} />}
 
       <main id="main-workspace" tabIndex={-1} className="app-main flex-1 overflow-y-auto lg:pt-0 pt-14">
-        <div className="route-stage" key={location.pathname}>{children}</div>
+        <div ref={routeRef} className="route-stage" key={location.pathname}>{children}</div>
       </main>
 
       {showAuth   && <AuthModal   onClose={() => setShowAuth(false)} />}

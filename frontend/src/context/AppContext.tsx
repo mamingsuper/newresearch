@@ -44,12 +44,25 @@ interface AppState {
 }
 
 const AppContext = createContext<AppState | null>(null);
+const THEME_STORAGE_KEY = "idea-radar-theme";
+type ThemePreference = "system" | "light" | "dark";
+
+function getInitialThemePreference(): ThemePreference {
+  try {
+    const saved = localStorage.getItem(THEME_STORAGE_KEY);
+    return saved === "light" || saved === "dark" ? saved : "system";
+  } catch {
+    return "system";
+  }
+}
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [lang, setLang] = useState<Lang>("en");
-  const [darkMode, setDarkMode] = useState(() =>
+  const [themePreference, setThemePreference] = useState<ThemePreference>(getInitialThemePreference);
+  const [systemDark, setSystemDark] = useState(() =>
     window.matchMedia("(prefers-color-scheme: dark)").matches
   );
+  const darkMode = themePreference === "system" ? systemDark : themePreference === "dark";
   const [user, setUser] = useState<UserState | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
@@ -77,6 +90,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
   }, [darkMode]);
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const syncSystemTheme = (event: MediaQueryListEvent) => setSystemDark(event.matches);
+    setSystemDark(media.matches);
+    media.addEventListener("change", syncSystemTheme);
+    return () => media.removeEventListener("change", syncSystemTheme);
+  }, []);
 
   useEffect(() => {
     if (pendingIdea) sessionStorage.setItem("idea-radar-pending-idea", pendingIdea);
@@ -134,7 +159,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   function toggleDark() {
-    setDarkMode((d) => !d);
+    const nextPreference: ThemePreference = darkMode ? "light" : "dark";
+    setThemePreference(nextPreference);
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, nextPreference);
+    } catch {
+      // The selected theme still applies for this session when storage is unavailable.
+    }
   }
 
   function toggleSavedPaper(paper: Paper) {

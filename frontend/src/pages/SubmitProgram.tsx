@@ -39,7 +39,7 @@ export default function SubmitProgram() {
 
   if (stage === "success") {
     return (
-      <div className="product-page product-page-narrow py-16 text-center anim-fade-up">
+      <div className="product-page product-page-narrow py-16 text-center anim-fade-up" data-reveal>
         <CheckCircle size={44} weight="duotone" style={{ color: "var(--success-c)", margin: "0 auto 14px" }} />
         <h2 className="font-serif font-medium text-xl mb-2">{t("submit_success_title", lang)}</h2>
         <p className="text-sm mb-5 leading-relaxed" style={{ color: "var(--muted-c)" }}>{t("submit_success_body", lang)}</p>
@@ -53,7 +53,7 @@ export default function SubmitProgram() {
 
   return (
     <div className="submit-page anim-fade-up">
-      <div className="submit-heading">
+      <div className="submit-heading" data-reveal>
         <h1 className="font-semibold tracking-tight text-2xl" style={{ color: "var(--ink)" }}>
           {t("submit_title", lang)}
         </h1>
@@ -63,6 +63,7 @@ export default function SubmitProgram() {
       {/* Review notice */}
       <div
         className="submit-notice"
+        data-reveal
       >
         <Info size={14} className="flex-shrink-0" />
         <p className="text-xs leading-relaxed">
@@ -70,7 +71,7 @@ export default function SubmitProgram() {
         </p>
       </div>
 
-      <form onSubmit={submit} className="submit-form">
+      <form onSubmit={submit} className="submit-form" data-reveal>
         <div className="submit-form-grid">
           <F id="conference-name" label={t("submit_name", lang)} req>
             <input id="conference-name" value={form.conferenceName} onChange={e => upd("conferenceName", e.target.value)} className="field" placeholder="American Political Science Association" required />

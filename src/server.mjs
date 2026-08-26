@@ -33,6 +33,8 @@ function isMainModule() {
 if (isMainModule()) {
   try {
     const services = createServices(process.env);
+    // The root local server preserves the deprecated public/ UI for compatibility.
+    // Production GitHub Pages serves the Vite/React application from frontend/.
     const publicDir = fileURLToPath(new URL('../public/', import.meta.url));
     const port = parsePositiveInteger(process.env.PORT, 3000, 'PORT');
     const rateLimiter = new InMemoryRateLimiter({

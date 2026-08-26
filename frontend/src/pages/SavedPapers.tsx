@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
-import { MagnifyingGlass, BookmarkSimple, ArrowSquareOut, Export, Trash, Tag, SignIn } from "@phosphor-icons/react";
+import { MagnifyingGlass, BookmarkSimple, ArrowSquareOut, Export, Trash, Tag, SignIn, Warning } from "@phosphor-icons/react";
 import { useApp } from "../context/AppContext";
 import { t } from "../i18n";
 import { papers as papersAdapter } from "../adapters/papers";
+import { ContentSkeleton } from "../components/ContentSkeleton";
+import { EmptyState } from "../components/EmptyState";
 import type { Paper } from "../types";
 
 type Conf = "all" | "APSA 2026" | "ICA 2026";
@@ -51,7 +53,7 @@ export default function SavedPapers() {
     <div className="product-page anim-fade-up">
 
       {/* Header */}
-      <div className="flex items-baseline gap-3 mb-6">
+      <div className="flex items-baseline gap-3 mb-6" data-reveal>
         <h1 className="font-semibold tracking-tight text-2xl" style={{ color: "var(--ink)" }}>
           {t("saved_papers_title", lang)}
         </h1>
@@ -61,7 +63,7 @@ export default function SavedPapers() {
       </div>
 
       {!user ? (
-        <div className="workspace-auth-state">
+        <div className="workspace-auth-state" data-reveal>
           <div className="workspace-auth-art" aria-hidden="true">
             <span className="bauhaus-circle" />
             <span className="bauhaus-square" />
@@ -78,7 +80,7 @@ export default function SavedPapers() {
         </div>
       ) : <>
       {/* Controls */}
-      <div className="flex flex-wrap gap-2 mb-5">
+      <div className="flex flex-wrap gap-2 mb-5" data-reveal>
         {/* Search */}
         <div
           className="flex items-center gap-2 flex-1 min-w-52 px-3 py-2 rounded-[10px]"
@@ -122,15 +124,33 @@ export default function SavedPapers() {
 
       {/* Content */}
       {error ? (
-        <div className="card p-4 text-sm" role="alert" style={{ color: "var(--danger-c)" }}>{error}</div>
+        <EmptyState
+          tone="danger"
+          icon={<Warning size={28} weight="duotone" />}
+          title={lang === "zh" ? "无法加载收藏论文" : "Saved papers unavailable"}
+          description={error}
+        />
       ) : loading ? (
-        <Skeleton />
+        <ContentSkeleton variant="paper" label={t("loading", lang)} />
       ) : all.length === 0 ? (
-        <Empty icon={<BookmarkSimple size={30} weight="fill" />} msg={t("saved_papers_empty", lang)} />
+        <EmptyState
+          icon={<BookmarkSimple size={30} weight="duotone" />}
+          title={t("saved_papers_empty", lang)}
+          description={lang === "zh" ? "在分析结果中收藏的论文会集中显示在这里。" : "Papers saved from analysis results will appear here."}
+        />
       ) : filtered.length === 0 ? (
-        <Empty icon={<MagnifyingGlass size={30} />} msg={t("saved_papers_filtered_empty", lang)} />
+        <EmptyState
+          icon={<MagnifyingGlass size={30} />}
+          title={t("saved_papers_filtered_empty", lang)}
+          description={lang === "zh" ? "调整关键词或会议筛选后再试。" : "Try a different keyword or conference filter."}
+          action={(
+            <button type="button" className="surface-action" onClick={() => { setSearch(""); setConf("all"); }}>
+              {lang === "zh" ? "清除筛选" : "Clear filters"}
+            </button>
+          )}
+        />
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 stagger-list" data-reveal>
           {filtered.map(p => (
             <div key={p.id} className="card p-5">
               <div className="flex items-start gap-3">
@@ -169,29 +189,6 @@ export default function SavedPapers() {
         </div>
       )}
       </>}
-    </div>
-  );
-}
-
-function Skeleton() {
-  return (
-    <div className="space-y-3">
-      {[1,2,3].map(i => (
-        <div key={i} className="card p-5 animate-pulse">
-          <div className="h-2.5 w-28 rounded mb-2" style={{ background: "var(--surface-subtle)" }} />
-          <div className="h-4 w-3/4 rounded mb-1.5" style={{ background: "var(--surface-subtle)" }} />
-          <div className="h-2.5 w-1/2 rounded" style={{ background: "var(--surface-subtle)" }} />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Empty({ icon, msg }: { icon: React.ReactNode; msg: string }) {
-  return (
-    <div className="empty-state" style={{ color: "var(--muted-c)" }}>
-      <div className="empty-state-icon">{icon}</div>
-      <p className="text-sm">{msg}</p>
     </div>
   );
 }

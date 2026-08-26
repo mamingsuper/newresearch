@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Info } from "@phosphor-icons/react";
 import { useApp } from "../context/AppContext";
 import { t } from "../i18n";
 import AnalysisComposer from "../components/AnalysisComposer";
 import { analysisAccessFor } from "../lib/analysis-policy";
+import { CountUp } from "../components/CountUp";
 
 const EXAMPLE_IDEA = `I'm interested in how algorithmic content curation on social media platforms affects political belief formation and polarization. Specifically, I want to understand whether exposure to algorithmically selected political content creates distinct framing effects compared with user-selected content, and whether these effects differ by prior political knowledge.`;
 
@@ -18,8 +19,6 @@ const CORPUS_STATS = [
 export default function NewAnalysis() {
   const { lang, user, setPendingIdea, setShowPaywall, analysisOptions, setAnalysisOptions } = useApp();
   const [idea, setIdea] = useState("");
-  const [corpusVisible, setCorpusVisible] = useState(false);
-  const corpusRef = useRef<HTMLElement>(null);
   const navigate = useNavigate();
 
   const charCount = idea.length;
@@ -41,25 +40,6 @@ export default function NewAnalysis() {
       externalProcessingConsent: !isPro ? false : current.externalProcessingConsent,
     }));
   }, [access.defaultMatchCount, access.tier, isPro, setAnalysisOptions]);
-
-  useEffect(() => {
-    const section = corpusRef.current;
-    if (!section || !("IntersectionObserver" in window)) {
-      setCorpusVisible(true);
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return;
-        setCorpusVisible(true);
-        observer.disconnect();
-      },
-      { threshold: 0.18 },
-    );
-    observer.observe(section);
-    return () => observer.disconnect();
-  }, []);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -88,11 +68,11 @@ export default function NewAnalysis() {
       <div className="ambient-shape ambient-shape-yellow" aria-hidden="true" />
       <div className="ambient-shape ambient-shape-red" aria-hidden="true" />
 
-      <section className="analysis-hero" aria-labelledby="analysis-title">
+      <section className="analysis-hero" aria-labelledby="analysis-title" data-reveal>
         <div className="hero-copy">
           <div className="corpus-kicker anim-fade-up">
             <span className="live-dot" />
-            <span className="font-mono tabnum">8,906 papers indexed</span>
+            <span className="font-mono tabnum"><CountUp value={8906} /> papers indexed</span>
             <span className="kicker-divider" />
             <span>APSA 2026 · ICA 2026</span>
           </div>
@@ -118,12 +98,17 @@ export default function NewAnalysis() {
         <aside className="evidence-radar anim-fade-up d200" aria-label="Live evidence network">
           <div className="radar-orbit radar-orbit-outer" />
           <div className="radar-orbit radar-orbit-inner" />
+          <svg className="radar-links" viewBox="0 0 100 100" aria-hidden="true">
+            <line className="radar-link link-one" x1="50" y1="50" x2="64.5" y2="26.5" pathLength="1" />
+            <line className="radar-link link-two" x1="50" y1="50" x2="81.5" y2="71.5" pathLength="1" />
+            <line className="radar-link link-three" x1="50" y1="50" x2="31.5" y2="80.5" pathLength="1" />
+          </svg>
           <div className="radar-sweep" />
           <span className="radar-node node-one" />
           <span className="radar-node node-two" />
           <span className="radar-node node-three" />
           <div className="radar-center">
-            <strong className="font-mono tabnum">8,906</strong>
+            <strong className="font-mono tabnum"><CountUp value={8906} /></strong>
             <span>live abstracts</span>
           </div>
           <div className="radar-caption">
@@ -132,7 +117,7 @@ export default function NewAnalysis() {
         </aside>
       </section>
 
-      <section className="analysis-workbench anim-fade-up d300" aria-label="Research idea workbench">
+      <section className="analysis-workbench anim-fade-up d300" aria-label="Research idea workbench" data-reveal>
         <AnalysisComposer
           lang={lang}
           user={user}
@@ -154,26 +139,22 @@ export default function NewAnalysis() {
         </div>
       </section>
 
-      <section
-        ref={corpusRef}
-        className={`corpus-overview${corpusVisible ? " is-visible" : ""}`}
-        aria-labelledby="corpus-title"
-      >
-        <div className="section-heading">
+      <section className="corpus-overview" aria-labelledby="corpus-title">
+        <div className="section-heading" data-reveal>
           <h2 id="corpus-title">Indexed evidence</h2>
           <p>Live coverage across two 2026 social-science conferences.</p>
         </div>
 
         <div className="corpus-grid">
           {CORPUS_STATS.map((stat, index) => (
-            <article key={stat.label} className={`corpus-stat stat-${index + 1}`}>
+            <article key={stat.label} className={`corpus-stat stat-${index + 1}`} data-reveal>
               <p className="stat-value font-mono tabnum">{stat.value}</p>
               <p className="stat-label">{stat.label}</p>
             </article>
           ))}
         </div>
 
-        <div className="corpus-method">
+        <div className="corpus-method" data-reveal>
           <div className="method-icon"><Info size={14} /></div>
           <p>{t("corpus_detail", lang)}</p>
           <span className="method-status"><i /> Production index</span>

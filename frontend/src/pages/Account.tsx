@@ -58,7 +58,7 @@ export default function Account() {
 
   if (!user) return (
     <div className="product-page product-page-narrow anim-fade-up">
-      <div className="workspace-auth-state">
+      <div className="workspace-auth-state" data-reveal>
         <div className="workspace-auth-art"><User size={28} weight="fill" /></div>
         <div>
           <h2>{lang === "en" ? "Your private research account" : "您的私人研究账户"}</h2>
@@ -79,7 +79,7 @@ export default function Account() {
 
   return (
     <div className="product-page product-page-narrow anim-fade-up">
-      <h1 className="font-semibold tracking-tight text-2xl mb-6" style={{ color: "var(--ink)" }}>
+      <h1 className="font-semibold tracking-tight text-2xl mb-6" style={{ color: "var(--ink)" }} data-reveal>
         {t("account_title", lang)}
       </h1>
 
@@ -175,6 +175,7 @@ export default function Account() {
       <div
         className="rounded-2xl p-5"
         style={{ border: "1px solid var(--danger-c)", background: "var(--danger-dim)" }}
+        data-reveal
       >
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
@@ -242,7 +243,7 @@ export default function Account() {
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <div className="card p-5 mb-4">{children}</div>
+    <div className="card p-5 mb-4" data-reveal>{children}</div>
   );
 }
 
@@ -265,10 +266,7 @@ function ActionRow({ icon, label, onClick, disabled }: { icon: React.ReactNode; 
     <button
       onClick={onClick}
       disabled={disabled}
-      className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-[10px] text-sm transition-colors cursor-pointer disabled:opacity-50 text-left"
-      style={{ color: "var(--muted-c)" }}
-      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--surface-subtle)"}
-      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
+      className="surface-action flex items-center gap-2.5 w-full px-3 py-2.5 rounded-[10px] text-sm cursor-pointer disabled:opacity-50 text-left"
     >
       {icon}
       {label}

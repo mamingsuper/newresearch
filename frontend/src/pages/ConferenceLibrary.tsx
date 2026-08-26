@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowSquareOut, Books, CaretLeft, CaretRight, Info, MagnifyingGlass } from "@phosphor-icons/react";
+import { ArrowSquareOut, Books, CaretLeft, CaretRight, Info, MagnifyingGlass, Warning } from "@phosphor-icons/react";
 import { useApp } from "../context/AppContext";
 import { t } from "../i18n";
 import { conferences as conferenceAdapter } from "../adapters/conferences";
 import type { CorpusPaper } from "../types";
+import { ContentSkeleton } from "../components/ContentSkeleton";
+import { EmptyState } from "../components/EmptyState";
 
 export default function ConferenceLibrary() {
   const { lang } = useApp();
@@ -50,7 +52,7 @@ export default function ConferenceLibrary() {
 
   return (
     <div className="product-page anim-fade-up">
-      <header className="library-heading">
+      <header className="library-heading" data-reveal>
         <div>
           <p className="section-kicker">02 · {lang === "zh" ? "真实会议语料" : "LIVE CONFERENCE CORPUS"}</p>
           <h1 className="font-semibold tracking-tight text-2xl mb-1" style={{ color: "var(--ink)" }}>{t("library_title", lang)}</h1>
@@ -61,7 +63,7 @@ export default function ConferenceLibrary() {
         <div className="library-total"><span>8,906</span><small>{lang === "zh" ? "已索引论文" : "indexed papers"}</small></div>
       </header>
 
-      <section className="library-controls" aria-label={lang === "zh" ? "论文筛选" : "Paper filters"}>
+      <section className="library-controls" aria-label={lang === "zh" ? "论文筛选" : "Paper filters"} data-reveal>
         <label className="library-search">
           <MagnifyingGlass size={18} aria-hidden="true" />
           <input
@@ -88,23 +90,33 @@ export default function ConferenceLibrary() {
         </div>
       </section>
 
-      <div className="library-result-meta">
+      <div className="library-result-meta" data-reveal>
         <span>{loading ? (lang === "zh" ? "正在读取语料…" : "Reading corpus…") : `${total.toLocaleString()} ${lang === "zh" ? "篇论文" : total === 1 ? "paper" : "papers"}`}</span>
         {!loading && total > 0 && <span>{visibleRange} / {total.toLocaleString()}</span>}
       </div>
 
       {error ? (
-        <div className="card p-5 text-sm" role="alert" style={{ color: "var(--danger-c)" }}>{error}</div>
+        <EmptyState
+          tone="danger"
+          icon={<Warning size={28} weight="duotone" />}
+          title={lang === "zh" ? "无法读取会议语料" : "Conference corpus unavailable"}
+          description={error}
+        />
       ) : loading ? (
-        <Skeleton />
+        <ContentSkeleton variant="library" label={t("loading", lang)} />
       ) : papers.length === 0 ? (
-        <div className="library-empty">
-          <Books size={26} weight="duotone" />
-          <strong>{lang === "zh" ? "没有找到匹配论文" : "No matching papers"}</strong>
-          <span>{lang === "zh" ? "尝试更短的术语或切换会议。" : "Try a shorter term or switch conferences."}</span>
-        </div>
+        <EmptyState
+          icon={<Books size={28} weight="duotone" />}
+          title={lang === "zh" ? "没有找到匹配论文" : "No matching papers"}
+          description={lang === "zh" ? "尝试更短的术语或切换会议。" : "Try a shorter term or switch conferences."}
+          action={(query || conference) ? (
+            <button type="button" className="surface-action" onClick={() => { setDraft(""); setQuery(""); setConference(""); setPage(1); }}>
+              {lang === "zh" ? "清除筛选" : "Clear filters"}
+            </button>
+          ) : undefined}
+        />
       ) : (
-        <div className="library-paper-list">
+        <div className="library-paper-list stagger-list" data-reveal>
           {papers.map((paper, index) => <PaperCard key={paper.id} paper={paper} index={(page - 1) * 20 + index + 1} lang={lang} />)}
         </div>
       )}
@@ -124,6 +136,7 @@ export default function ConferenceLibrary() {
       <div
         className="mt-7 rounded-xl px-4 py-3.5 flex gap-2.5"
         style={{ background: "var(--surface-subtle)", border: "1px solid var(--border-c)" }}
+        data-reveal
       >
         <Info size={13} className="flex-shrink-0 mt-0.5" style={{ color: "var(--muted-c)" }} />
         <p className="text-xs leading-relaxed" style={{ color: "var(--muted-c)" }}>
@@ -140,7 +153,7 @@ function authorLine(authors: CorpusPaper["authors"]) {
 
 function PaperCard({ paper, index, lang }: { paper: CorpusPaper; index: number; lang: "en" | "zh" }) {
   return (
-    <article className="library-paper-card anim-fade-up">
+    <article className="library-paper-card">
       <span className="library-paper-index">{String(index).padStart(2, "0")}</span>
       <div className="library-paper-body">
         <div className="library-paper-topline">
@@ -162,20 +175,5 @@ function PaperCard({ paper, index, lang }: { paper: CorpusPaper; index: number; 
         </div>
       </div>
     </article>
-  );
-}
-
-function Skeleton() {
-  return (
-    <div className="library-paper-list" aria-hidden="true">
-      {[1, 2, 3].map((item) => (
-        <div key={item} className="library-paper-card library-skeleton">
-          <span className="library-paper-index">0{item}</span>
-        <div>
-          <i /><i /><i />
-        </div>
-        </div>
-      ))}
-    </div>
   );
 }

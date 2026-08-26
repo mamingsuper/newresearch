@@ -40,7 +40,7 @@ function ResearchMarkdown({ reportMarkdown }: { reportMarkdown: string }) {
 
 function SourceCollection({ title, sources }: { title: string; sources: ResearchSource[] }) {
   return (
-    <section className="mb-8">
+    <section className="mb-8" data-reveal>
       <h2 className="font-serif font-medium text-base mb-3">{title} <span className="font-mono text-xs" style={{ color: "var(--muted-c)" }}>({sources.length})</span></h2>
       <div className="space-y-2">
         {sources.map((source, index) => {
@@ -93,14 +93,14 @@ function SuperResearchReport({ report }: { report: AnalysisReport }) {
 
   return (
     <>
-      <div className="mb-6 rounded-xl p-4 flex items-start gap-3" style={{ background: "var(--signal-dim)", border: "1px solid var(--signal-c)" }}>
+      <div className="mb-6 rounded-xl p-4 flex items-start gap-3" style={{ background: "var(--signal-dim)", border: "1px solid var(--signal-c)" }} data-reveal>
         <Info size={16} className="mt-0.5 flex-shrink-0" style={{ color: "var(--signal-c)" }} />
         <div>
           <p className="font-semibold text-sm">SUPER:Apodex · Complete deep-research memo</p>
           <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted-c)" }}>Conference evidence is labeled C; public web evidence is labeled W. Verify important claims at the linked sources.</p>
         </div>
       </div>
-      <section className="card mb-8 overflow-hidden">
+      <section className="card mb-8 overflow-hidden" data-reveal>
         <div className="research-report-toolbar">
           <p className="font-semibold text-sm">Research memo</p>
           <div className="research-report-actions">
@@ -124,7 +124,7 @@ function SuperResearchReport({ report }: { report: AnalysisReport }) {
       <SourceCollection title="Conference corpus sources" sources={report.corpusSources ?? []} />
       <SourceCollection title="Public web sources" sources={report.webSources ?? []} />
       {(report.researchActions?.length ?? 0) > 0 && (
-        <section className="mb-8">
+        <section className="mb-8" data-reveal>
           <h2 className="font-serif font-medium text-base mb-3">Research actions</h2>
           <div className="card p-5 space-y-2">
             {report.researchActions?.map((action, index) => (
@@ -289,7 +289,7 @@ export default function AnalysisResults() {
     <div className="product-page anim-fade-up">
 
       {/* ── Top action bar ─────────────────────────────── */}
-      <div className="flex items-center gap-2 mb-8 flex-wrap">
+      <div className="flex items-center gap-2 mb-8 flex-wrap" data-reveal>
         <button
           onClick={handleSave}
           disabled={saveState === "saving"}
@@ -312,10 +312,7 @@ export default function AnalysisResults() {
         </button>
         <button
           onClick={() => { setCurrentReport(null); navigate("/"); }}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-[9px] text-sm font-semibold cursor-pointer ml-auto"
-          style={{ background: "var(--accent-c)", color: "#fff" }}
-          onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = "0.88"}
-          onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = "1"}
+          className="primary-action flex items-center gap-1.5 px-3.5 py-2 rounded-[9px] text-sm font-semibold cursor-pointer ml-auto"
         >
           <Plus size={14} />
           {t("results_new", lang)}
@@ -329,7 +326,7 @@ export default function AnalysisResults() {
       ) : <>
 
       {/* ── 1 · Idea profile ───────────────────────────── */}
-      <section className="mb-8">
+      <section className="mb-8" data-reveal>
         <SectionLabel n={1} title={t("results_idea_profile", lang)} />
         <p className="text-sm leading-relaxed" style={{ color: "var(--ink)", opacity: 0.85, lineHeight: 1.75 }}>
           {r.ideaProfile}
@@ -337,7 +334,7 @@ export default function AnalysisResults() {
       </section>
 
       {/* ── 2 · Corpus notice ──────────────────────────── */}
-      <section className="mb-8">
+      <section className="mb-8" data-reveal>
         <SectionLabel n={2} title={t("results_corpus_notice", lang)} muted />
         <div
           className="flex gap-3 rounded-xl px-4 py-3.5"
@@ -351,7 +348,7 @@ export default function AnalysisResults() {
       </section>
 
       {/* ── 3 · Closest work ───────────────────────────── */}
-      <section className="mb-8">
+      <section className="mb-8" data-reveal>
         <SectionLabel n={3} title={t("results_closest_work", lang)} />
         <p className="text-sm leading-relaxed" style={{ color: "var(--ink)", opacity: 0.85, lineHeight: 1.75 }}>
           {r.closestWork}
@@ -359,7 +356,7 @@ export default function AnalysisResults() {
       </section>
 
       {/* ── 4 · Innovation directions ──────────────────── */}
-      <section className="mb-8">
+      <section className="mb-8" data-reveal>
         <SectionLabel n={4} title={t("results_innovation", lang)} />
         <div className="space-y-3">
           {r.innovationDirections.map((dir: InnovationDirection, i: number) => (
@@ -392,7 +389,7 @@ export default function AnalysisResults() {
       </section>
 
       {/* ── 5 · Next steps ─────────────────────────────── */}
-      <section className="mb-8">
+      <section className="mb-8" data-reveal>
         <SectionLabel n={5} title={t("results_next_steps", lang)} />
         <ol className="space-y-3">
           {r.nextSteps.map((step: string, i: number) => (
@@ -412,7 +409,7 @@ export default function AnalysisResults() {
       </section>
 
       {/* ── 6 · Limitations ────────────────────────────── */}
-      <section className="mb-8">
+      <section className="mb-8" data-reveal>
         <SectionLabel n={6} title={t("results_limitations", lang)} muted />
         <ul className="space-y-2">
           {r.limitations.map((lim: string, i: number) => (
@@ -425,7 +422,7 @@ export default function AnalysisResults() {
       </section>
 
       {/* ── 7 · Related papers ─────────────────────────── */}
-      <section className="mb-10">
+      <section className="mb-10" data-reveal>
         <SectionLabel n={7} title={t("results_papers", lang)} />
         <p className="text-xs mb-4" style={{ color: "var(--muted-c)" }}>
           <span className="font-mono tabnum">{r.papers.length}</span> {t("results_papers_count", lang)}{" · "}

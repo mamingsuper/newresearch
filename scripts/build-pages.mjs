@@ -4,6 +4,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// public/ contains the deprecated UI; only its config template remains a transitional
+// input. All production page markup and assets come from frontend/dist.
 const publicDir = path.join(root, 'public');
 const frontendDist = path.join(root, 'frontend', 'dist');
 const outputDir = path.join(root, 'pages-dist');

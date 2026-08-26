@@ -5,6 +5,8 @@ import { useApp } from "../context/AppContext";
 import { t } from "../i18n";
 import { sessions } from "../adapters/sessions";
 import type { ConversationSummary } from "../types";
+import { ContentSkeleton } from "../components/ContentSkeleton";
+import { EmptyState } from "../components/EmptyState";
 
 export default function Conversations() {
   const { lang, user, setShowAuth, setCurrentReport, refreshUser } = useApp();
@@ -77,7 +79,7 @@ export default function Conversations() {
     <div className="product-page anim-fade-up">
 
       {/* Header */}
-      <div className="flex items-baseline gap-3 mb-6">
+      <div className="flex items-baseline gap-3 mb-6" data-reveal>
         <h1 className="font-semibold tracking-tight text-2xl" style={{ color: "var(--ink)" }}>
           {t("conversations_title", lang)}
         </h1>
@@ -87,7 +89,7 @@ export default function Conversations() {
       </div>
 
       {!user ? (
-        <div className="workspace-auth-state">
+        <div className="workspace-auth-state" data-reveal>
           <div className="workspace-auth-art" aria-hidden="true">
             <span className="bauhaus-circle" />
             <span className="bauhaus-square" />
@@ -107,6 +109,7 @@ export default function Conversations() {
       <div
         className="flex items-center gap-2 mb-5 px-3 py-2 rounded-[10px]"
         style={{ background: "var(--surface)", border: "1px solid var(--border-c)" }}
+        data-reveal
       >
         <MagnifyingGlass size={14} style={{ color: "var(--muted-c)" }} />
         <input
@@ -122,15 +125,38 @@ export default function Conversations() {
 
       {/* List */}
       {error ? (
-        <div className="card p-4 text-sm" role="alert" style={{ color: "var(--danger-c)" }}>{error}</div>
+        <EmptyState
+          tone="danger"
+          icon={<Warning size={28} weight="duotone" />}
+          title={lang === "zh" ? "无法加载历史会话" : "Analysis history unavailable"}
+          description={error}
+        />
       ) : loading ? (
-        <Skeleton />
+        <ContentSkeleton variant="conversation" count={4} label={t("loading", lang)} />
       ) : items.length === 0 ? (
-        <Empty />
+        <EmptyState
+          icon={<ChatTeardropText size={30} weight="duotone" />}
+          title={t("conversations_empty", lang)}
+          description={lang === "zh" ? "完成并保存一次分析后，它会出现在这里。" : "Complete and save an analysis to build your history."}
+          action={(
+            <button type="button" className="surface-action" onClick={() => navigate("/")}>
+              {lang === "zh" ? "开始新分析" : "Start an analysis"}
+            </button>
+          )}
+        />
       ) : filtered.length === 0 ? (
-        <Empty />
+        <EmptyState
+          icon={<MagnifyingGlass size={30} />}
+          title={lang === "zh" ? "没有匹配的历史会话" : "No analyses match this search"}
+          description={lang === "zh" ? "换一个关键词，或清除搜索后查看全部会话。" : "Try another keyword or clear the search to see all analyses."}
+          action={(
+            <button type="button" className="surface-action" onClick={() => setSearch("")}>
+              {lang === "zh" ? "清除搜索" : "Clear search"}
+            </button>
+          )}
+        />
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2 stagger-list" data-reveal>
           {filtered.map(item => (
             <div
               key={item.id}
@@ -190,8 +216,7 @@ export default function Conversations() {
           onClick={() => !deleting && setDeleteTarget(null)}
         >
           <div
-            className="w-full max-w-sm rounded-2xl p-6 anim-scale-in"
-            style={{ background: "var(--surface)", boxShadow: "var(--shadow-modal)" }}
+            className="premium-modal w-full max-w-sm rounded-2xl p-6 anim-scale-in"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center gap-2 mb-2">
@@ -222,29 +247,6 @@ export default function Conversations() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function Skeleton() {
-  return (
-    <div className="space-y-2">
-      {[1,2,3,4].map(i => (
-        <div key={i} className="card p-5 animate-pulse">
-          <div className="h-2.5 w-36 rounded mb-2.5" style={{ background: "var(--surface-subtle)" }} />
-          <div className="h-4 w-2/3 rounded" style={{ background: "var(--surface-subtle)" }} />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Empty() {
-  const { lang } = useApp();
-  return (
-    <div className="empty-state" style={{ color: "var(--muted-c)" }}>
-      <div className="empty-state-icon"><ChatTeardropText size={30} /></div>
-      <p className="text-sm">{t("conversations_empty", lang)}</p>
     </div>
   );
 }

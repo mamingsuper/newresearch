@@ -182,12 +182,14 @@ nomic-ai/nomic-embed-text-v1.5
 
 ### Frontend
 
-- Vanilla HTML5
-- CSS3
-- Vanilla JavaScript / ES Modules
-- GitHub Pages
+- React 19 + TypeScript
+- Vite 8
+- Tailwind CSS 4
+- GitHub Pages static SPA
 
-没有使用 React、Vue 或其他大型前端框架。当前公开站点为静态前端，通过 HTTPS 调用 Supabase Edge API。
+`frontend/` 是线上 UI 的单一事实来源。`npm run pages:build` 先构建该 Vite/React SPA，再由 `scripts/build-pages.mjs` 将 `frontend/dist/` 组装为 `pages-dist/`，通过 GitHub Pages 发布。浏览器通过 HTTPS 调用 Supabase Edge API。
+
+根目录 `public/` 是已废弃的 vanilla HTML/CSS/JavaScript 前端，仅为现有本地 Node.js 流程、遗留测试和历史保留。不要在 `public/` 中继续开发产品 UI；要查看或修改线上界面，请使用 `frontend/`。其中 `public/config.template.js` 暂时仍由 Pages 构建读取，用于生成公开运行时配置，不代表旧 UI 仍是生产前端。
 
 ### Backend / Edge API
 
@@ -280,7 +282,7 @@ GitHub Pages deploy
 ```text
                          ┌──────────────────────────┐
                          │        GitHub Pages      │
-                         │      Browser UI / JS     │
+                         │    Vite / React SPA      │
                          └────────────┬─────────────┘
                                       │ research idea
                                       ▼
@@ -490,7 +492,17 @@ searchable paper
 - Node.js `>=22.9.0`
 - npm
 
-### Mock mode
+### 生产前端（推荐）
+
+查看或修改 GitHub Pages 使用的界面：
+
+```bash
+npm --prefix frontend run dev
+```
+
+Vite 默认监听 `http://localhost:8443`。所有产品 UI 改动都应提交到 `frontend/`。
+
+### 遗留 Node.js mock mode
 
 无需任何 API key：
 
@@ -505,7 +517,7 @@ npm start
 http://localhost:3000
 ```
 
-默认 `APP_MODE=mock`。
+默认 `APP_MODE=mock`。此命令由 `src/server.mjs` 提供 API，并服务已废弃的 `public/` vanilla 前端；它用于保留现有本地流程，不会改变 GitHub Pages 上的 React UI。
 
 ### Verification
 
@@ -513,8 +525,11 @@ http://localhost:3000
 npm test
 npm run check
 npm run build
+npm --prefix frontend run build
 npm run pages:build
 ```
+
+其中根级 `npm run build` 打包的是 Node.js 应用及遗留 `public/` 前端；线上 Pages 前端的直接构建命令是 `npm --prefix frontend run build`，完整 Pages 产物使用 `npm run pages:build`。
 
 ---
 
@@ -601,7 +616,8 @@ npm run corpus:refresh -- \
 ## Repository layout
 
 ```text
-public/                     GitHub Pages frontend
+frontend/                   production Vite/React frontend (single source of truth)
+public/                     deprecated vanilla frontend retained for local Node/tests
 src/                        Node.js application / local server / integrations
 scripts/                    corpus, build and validation commands
 supabase/

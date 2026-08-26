@@ -3,6 +3,7 @@ import { X, Lightning, ArrowClockwise, Warning } from "@phosphor-icons/react";
 import { useApp } from "../context/AppContext";
 import { t } from "../i18n";
 import { billing } from "../adapters/billing";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 interface Props { onClose: () => void; }
 
@@ -11,6 +12,7 @@ export function PaywallModal({ onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [email, setEmail] = useState("");
+  const dialogRef = useFocusTrap<HTMLDivElement>({ lockBodyScroll: true, onEscape: onClose });
 
   const isPro = user?.plan === "pro";
 
@@ -37,15 +39,14 @@ export function PaywallModal({ onClose }: Props) {
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
         className="premium-modal w-full max-w-sm max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl p-7 relative anim-scale-in"
-        style={{ background: "var(--surface)", boxShadow: "var(--shadow-modal)" }}
         onClick={e => e.stopPropagation()}
-        role="dialog" aria-modal="true"
+        role="dialog" aria-modal="true" aria-label={t("pricing_title", lang)}
+        tabIndex={-1}
       >
-        <button onClick={onClose} className="absolute top-4 right-4 p-1.5 rounded-[8px] cursor-pointer"
-          style={{ color: "var(--muted-c)" }} aria-label={t("close", lang)}
-          onMouseEnter={e => e.currentTarget.style.background = "var(--surface-subtle)"}
-          onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+        <button onClick={onClose} className="modal-close absolute top-4 right-4 p-1.5 rounded-[8px] cursor-pointer"
+          aria-label={t("close", lang)}
         ><X size={17}/></button>
 
         <div
@@ -86,6 +87,7 @@ export function PaywallModal({ onClose }: Props) {
         {error && (
           <div
             className="flex items-center gap-1.5 text-xs mb-3 p-3 rounded-[10px]"
+            role="alert"
             style={{ background: "var(--danger-dim)", color: "var(--danger-c)" }}
           >
             <Warning size={12}/>{error}
@@ -130,10 +132,7 @@ export function PaywallModal({ onClose }: Props) {
             </button>
             <button
               onClick={onClose}
-              className="w-full py-2.5 text-sm cursor-pointer rounded-[10px] transition-colors"
-              style={{ color: "var(--muted-c)" }}
-              onMouseEnter={e => e.currentTarget.style.background = "var(--surface-subtle)"}
-              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              className="surface-action w-full py-2.5 text-sm cursor-pointer rounded-[10px]"
             >
               {t("pricing_not_now", lang)}
             </button>
