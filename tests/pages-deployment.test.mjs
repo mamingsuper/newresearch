@@ -70,6 +70,21 @@ test('Pages builder reports the actual artifact file count', async () => {
   assert.doesNotMatch(config, /__PUBLIC_SUPABASE_PUBLISHABLE_KEY__/);
   assert.equal(fallbackHtml, indexHtml);
   assert.ok((await readdir(new URL('assets/', output))).some((name) => name.endsWith('.js')));
+
+  const routeFiles = [
+    'analysis/progress/index.html',
+    'analysis/results/index.html',
+    'library/index.html',
+    'papers/index.html',
+    'conversations/index.html',
+    'submit/index.html',
+    'account/index.html',
+  ];
+  for (const routeFile of routeFiles) {
+    const routeHtml = await text(`pages-dist/${routeFile}`);
+    assert.match(routeHtml, /<base href="(?:\.\.\/)+">/);
+    assert.match(routeHtml, /<div id="root"><\/div>/);
+  }
 });
 
 test('Pages builder rejects missing and secret-shaped credentials', async () => {

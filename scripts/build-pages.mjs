@@ -10,6 +10,15 @@ const outputDir = path.join(root, 'pages-dist');
 const configToken = '__PUBLIC_SUPABASE_PUBLISHABLE_KEY__';
 const publishableKey = process.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ?? '';
 const textExtensions = new Set(['.html', '.css', '.js', '.json', '.txt', '.svg']);
+const spaRoutes = [
+  'analysis/progress',
+  'analysis/results',
+  'library',
+  'papers',
+  'conversations',
+  'submit',
+  'account',
+];
 const secretPatterns = [
   /OPENAI_API_KEY/i,
   /APODEX_API_KEY/i,
@@ -45,6 +54,14 @@ await cp(frontendDist, outputDir, {
   recursive: true,
 });
 await cp(path.join(outputDir, 'index.html'), path.join(outputDir, '404.html'));
+const indexHtml = await readFile(path.join(outputDir, 'index.html'), 'utf8');
+for (const route of spaRoutes) {
+  const routeDirectory = path.join(outputDir, route);
+  const routeDepth = route.split('/').length;
+  const routeHtml = indexHtml.replace('<head>', `<head>\n    <base href="${'../'.repeat(routeDepth)}">`);
+  await mkdir(routeDirectory, { recursive: true });
+  await writeFile(path.join(routeDirectory, 'index.html'), routeHtml, 'utf8');
+}
 await writeFile(path.join(outputDir, 'config.js'), configTemplate.replace(configToken, publishableKey), 'utf8');
 await writeFile(path.join(outputDir, '.nojekyll'), '', 'utf8');
 
@@ -65,7 +82,14 @@ for (const file of files) {
   }
 }
 
-for (const required of ['index.html', '404.html', 'config.js', '.nojekyll']) {
+const requiredFiles = [
+  'index.html',
+  '404.html',
+  'config.js',
+  '.nojekyll',
+  ...spaRoutes.map((route) => `${route}/index.html`),
+];
+for (const required of requiredFiles) {
   if (!files.some((file) => path.relative(outputDir, file) === required)) {
     throw new Error(`Pages artifact is missing ${required}`);
   }
