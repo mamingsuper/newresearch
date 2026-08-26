@@ -31,7 +31,7 @@ test('signed-in Free and Pro access expose only their purchased evidence depth',
   assert.equal(pro.defaultMatchCount, 20);
   assert.equal(pro.maxAttachments, 3);
   assert.equal(pro.canUseSuper, true);
-  assert.equal(pro.quotaLabel, '30 today');
+  assert.equal(pro.quotaLabel, 'Unlimited');
 });
 
 test('analysis attachments accept bounded PDF, Markdown, and text files', () => {

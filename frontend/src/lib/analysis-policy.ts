@@ -34,7 +34,7 @@ export function analysisAccessFor(user: UserAccess | null): AnalysisAccess {
       defaultMatchCount: 20,
       maxAttachments: 3,
       canUseSuper: true,
-      quotaLabel: "30 today",
+      quotaLabel: "Unlimited",
     };
   }
   return {
