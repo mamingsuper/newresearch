@@ -60,10 +60,15 @@ test('Pages builder reports the actual artifact file count', async () => {
   assert.equal(result.files, await walk(output));
 
   const config = await text('pages-dist/config.js');
+  const [indexHtml, fallbackHtml] = await Promise.all([
+    text('pages-dist/index.html'),
+    text('pages-dist/404.html'),
+  ]);
   assert.match(config, /apiBaseUrl:\s*'https:\/\/euptkcjwunpnwiqejtru\.supabase\.co\/functions\/v1'/);
   assert.match(config, /supabaseUrl:\s*'https:\/\/euptkcjwunpnwiqejtru\.supabase\.co'/);
   assert.match(config, /supabasePublishableKey:\s*'sb_publishable_test'/);
   assert.doesNotMatch(config, /__PUBLIC_SUPABASE_PUBLISHABLE_KEY__/);
+  assert.equal(fallbackHtml, indexHtml);
   assert.ok((await readdir(new URL('assets/', output))).some((name) => name.endsWith('.js')));
 });
 

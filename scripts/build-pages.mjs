@@ -44,6 +44,7 @@ await mkdir(outputDir, { recursive: true });
 await cp(frontendDist, outputDir, {
   recursive: true,
 });
+await cp(path.join(outputDir, 'index.html'), path.join(outputDir, '404.html'));
 await writeFile(path.join(outputDir, 'config.js'), configTemplate.replace(configToken, publishableKey), 'utf8');
 await writeFile(path.join(outputDir, '.nojekyll'), '', 'utf8');
 
@@ -64,7 +65,7 @@ for (const file of files) {
   }
 }
 
-for (const required of ['index.html', 'config.js', '.nojekyll']) {
+for (const required of ['index.html', '404.html', 'config.js', '.nojekyll']) {
   if (!files.some((file) => path.relative(outputDir, file) === required)) {
     throw new Error(`Pages artifact is missing ${required}`);
   }
