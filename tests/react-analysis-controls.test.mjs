@@ -43,3 +43,13 @@ test('analysis adapter persists jobs, polls status, and preserves complete repor
   assert.match(results, /webSources/);
   assert.doesNotMatch(results, /\.slice\([^)]*reportMarkdown/);
 });
+
+test('SUPER reports render GFM and expose copy plus Markdown download actions', async () => {
+  const results = await readFile(new URL('pages/AnalysisResults.tsx', root), 'utf8');
+
+  assert.match(results, /ReactMarkdown/);
+  assert.match(results, /remarkGfm/);
+  assert.match(results, /navigator\.clipboard\.writeText/);
+  assert.match(results, /text\/markdown/);
+  assert.match(results, /\.md`/);
+});

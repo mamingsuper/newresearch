@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   BookmarkSimple, ArrowSquareOut, Export, Plus, Info,
-  CaretDown, CaretUp, CheckCircle
+  CaretDown, CaretUp, CheckCircle, CopySimple, DownloadSimple
 } from "@phosphor-icons/react";
 import { useApp } from "../context/AppContext";
 import { t } from "../i18n";
@@ -22,14 +24,16 @@ function safeSourceUrl(source: ResearchSource) {
 function ResearchMarkdown({ reportMarkdown }: { reportMarkdown: string }) {
   return (
     <div className="research-markdown">
-      {reportMarkdown.split("\n").map((line, index) => {
-        if (line.startsWith("### ")) return <h3 key={index}>{line.slice(4)}</h3>;
-        if (line.startsWith("## ")) return <h2 key={index}>{line.slice(3)}</h2>;
-        if (line.startsWith("# ")) return <h2 key={index}>{line.slice(2)}</h2>;
-        if (/^[-*]\s/.test(line)) return <p key={index} className="pl-4">• {line.replace(/^[-*]\s/, "")}</p>;
-        if (/^\d+\.\s/.test(line)) return <p key={index} className="pl-4">{line}</p>;
-        return line.trim() ? <p key={index}>{line}</p> : <br key={index} />;
-      })}
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          a: ({ children, ...props }) => (
+            <a {...props} target="_blank" rel="noopener noreferrer">{children}</a>
+          ),
+        }}
+      >
+        {reportMarkdown}
+      </ReactMarkdown>
     </div>
   );
 }
@@ -63,7 +67,30 @@ function SourceCollection({ title, sources }: { title: string; sources: Research
 }
 
 function SuperResearchReport({ report }: { report: AnalysisReport }) {
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
   if (!report) return null;
+  const reportMarkdown = report.reportMarkdown ?? "";
+
+  async function copyReport() {
+    try {
+      await navigator.clipboard.writeText(reportMarkdown);
+      setCopyState("copied");
+    } catch {
+      setCopyState("error");
+    }
+    window.setTimeout(() => setCopyState("idle"), 1800);
+  }
+
+  function downloadReport() {
+    const blob = new Blob([reportMarkdown], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `idea-radar-super-report-${report.id}.md`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <>
       <div className="mb-6 rounded-xl p-4 flex items-start gap-3" style={{ background: "var(--signal-dim)", border: "1px solid var(--signal-c)" }}>
@@ -73,8 +100,26 @@ function SuperResearchReport({ report }: { report: AnalysisReport }) {
           <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted-c)" }}>Conference evidence is labeled C; public web evidence is labeled W. Verify important claims at the linked sources.</p>
         </div>
       </div>
-      <section className="card p-6 mb-8">
-        <ResearchMarkdown reportMarkdown={report.reportMarkdown ?? ""} />
+      <section className="card mb-8 overflow-hidden">
+        <div className="research-report-toolbar">
+          <p className="font-semibold text-sm">Research memo</p>
+          <div className="research-report-actions">
+            <span className="sr-only" aria-live="polite">
+              {copyState === "copied" ? "Report copied" : copyState === "error" ? "Could not copy report" : ""}
+            </span>
+            <button type="button" onClick={copyReport} className="research-report-action">
+              {copyState === "copied" ? <CheckCircle size={15} weight="fill" /> : <CopySimple size={15} />}
+              {copyState === "copied" ? "Copied" : copyState === "error" ? "Copy failed" : "Copy report"}
+            </button>
+            <button type="button" onClick={downloadReport} className="research-report-action">
+              <DownloadSimple size={15} />
+              Download .md
+            </button>
+          </div>
+        </div>
+        <div className="p-6">
+          <ResearchMarkdown reportMarkdown={reportMarkdown} />
+        </div>
       </section>
       <SourceCollection title="Conference corpus sources" sources={report.corpusSources ?? []} />
       <SourceCollection title="Public web sources" sources={report.webSources ?? []} />

@@ -1073,6 +1073,10 @@ body::before {
 .processing-consent input { width: 16px; height: 16px; margin-top: 1px; accent-color: var(--accent-c); }
 .research-markdown { color: var(--ink); font-size: clamp(0.95rem, 1.2vw, 1.04rem); line-height: 1.78; }
 .research-markdown h2, .research-markdown h3 { margin: 1.7em 0 0.65em; font-family: var(--font-display); font-style: normal; letter-spacing: -0.025em; }
+.research-report-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; border-bottom: 1px solid var(--border-c); background: var(--surface-subtle); }
+.research-report-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.research-report-action { display: inline-flex; align-items: center; gap: 7px; padding: 7px 11px; border: 1px solid var(--border-c); border-radius: 9px; color: var(--muted-c); background: var(--surface); font-size: var(--text-xs); font-weight: 700; cursor: pointer; }
+.research-report-action:hover { border-color: var(--accent-c); color: var(--accent-c); }
 
 /* Hallmark interaction floor: stable geometry, visible states, touch-safe targets. */
 button,
@@ -1139,12 +1143,27 @@ button:not(:disabled):active,
 .research-markdown h2 { font-size: 1.35rem; }
 .research-markdown h3 { font-size: 1.08rem; }
 .research-markdown p, .research-markdown li { margin: 0.55em 0; }
-.research-markdown ul { margin: 0.5em 0 0.8em 1.2em; list-style: square; }
+.research-markdown ul, .research-markdown ol { margin: 0.5em 0 0.8em 1.35em; padding-left: 0.4em; }
+.research-markdown ul { list-style: square; }
+.research-markdown ol { list-style: decimal; }
+.research-markdown li > ul, .research-markdown li > ol { margin-block: 0.25em; }
+.research-markdown strong { font-weight: 750; color: var(--ink); }
+.research-markdown a { color: var(--accent-c); text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+.research-markdown blockquote { margin: 1em 0; padding: 0.2em 0 0.2em 1em; border-left: 3px solid var(--color-rule-3); color: var(--muted-c); }
+.research-markdown hr { margin: 1.6em 0; border: 0; border-top: 1px solid var(--border-c); }
+.research-markdown code { padding: 0.12em 0.35em; border-radius: 5px; background: var(--surface-subtle); font-family: var(--font-mono); font-size: 0.9em; }
+.research-markdown pre { max-width: 100%; margin: 1em 0; padding: 14px 16px; overflow-x: auto; border: 1px solid var(--border-c); background: var(--surface-subtle); }
+.research-markdown pre code { padding: 0; background: transparent; }
+.research-markdown table { width: 100%; margin: 1.1em 0; border-collapse: collapse; font-size: 0.92em; }
+.research-markdown th, .research-markdown td { padding: 9px 11px; border: 1px solid var(--border-c); text-align: left; vertical-align: top; }
+.research-markdown th { background: var(--surface-subtle); font-weight: 750; }
 
 @media (max-width: 720px) {
   .analysis-options { grid-template-columns: 1fr; padding-inline: 14px; }
   .model-selector { grid-template-columns: 1fr; }
   .model-selector legend, .upgrade-inline { grid-column: 1; }
+  .research-report-toolbar { align-items: flex-start; flex-direction: column; }
+  .research-report-actions { width: 100%; justify-content: flex-start; }
 }
 
 /* Corpus library — dense editorial catalog, backed by the mediated paper API. */
