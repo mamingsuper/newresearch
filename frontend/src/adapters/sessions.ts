@@ -32,9 +32,9 @@ export const sessions = {
         language,
         corpusSnapshot: {
           ready: true,
-          paperCount: 8906,
-          papersWithAbstract: 8906,
-          embeddedPaperCount: 8906,
+          paperCount: 10230,
+          papersWithAbstract: 10230,
+          embeddedPaperCount: 10230,
           pendingEmbeddingCount: 0,
           failedEmbeddingCount: 0,
           conferences: [

@@ -4,7 +4,7 @@ export interface Paper {
   authorYear: string;
   title: string;
   authors: string;
-  conference: "APSA 2026" | "ICA 2026";
+  conference: "APSA 2026" | "ICA 2026" | "EPSS 2026";
   division?: string;
   keywords?: string[];
   rrfScore: number;

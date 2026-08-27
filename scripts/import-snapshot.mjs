@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { normalizeApsaPaper, normalizeIcaPaper } from '../src/ingestion/normalizers.mjs';
+import { normalizeApsaPaper, normalizeEpssPaper, normalizeIcaPaper } from '../src/ingestion/normalizers.mjs';
 
 function parseArgs(argv) {
   const args = {};
@@ -26,12 +26,13 @@ function recordsFromSnapshot(value) {
 function adapterFor(source) {
   if (source === 'apsa') return normalizeApsaPaper;
   if (source === 'ica') return normalizeIcaPaper;
+  if (source === 'epss') return normalizeEpssPaper;
   throw new Error(`Unsupported source adapter: ${source}`);
 }
 
 export async function importSnapshot({ source, input, output }) {
   if (!source || !input || !output) {
-    throw new Error('Required arguments: --source <apsa|ica> --input <file.json> --output <file.ndjson>');
+    throw new Error('Required arguments: --source <apsa|ica|epss> --input <file.json> --output <file.ndjson>');
   }
   const normalize = adapterFor(source.toLowerCase());
   const snapshot = JSON.parse(await readFile(input, 'utf8'));

@@ -24,7 +24,7 @@ export const MOCK_REPORT: AnalysisReport = {
   idea: "",
   createdAt: new Date().toISOString(),
   ideaProfile: "Your research idea centers on the mechanisms by which algorithmic content curation shapes political belief formation and polarization, with particular attention to framing effects and the moderating role of prior political knowledge. This is a theoretically rich inquiry that sits at the intersection of political communication, media psychology, and platform studies. The core theoretical tension between user agency and algorithmic determinism in political information environments is one of the most contested questions in contemporary political communication research.",
-  corpusNotice: "This analysis draws exclusively on papers indexed from APSA 2026 (5,493 papers) and ICA 2026 (3,413 papers), totaling 8,906 papers. Results reflect what has been presented at these two conferences in 2026 and should not be interpreted as a comprehensive review of the global literature. No claim of novelty is made beyond this indexed corpus.",
+  corpusNotice: "This analysis draws exclusively on 10,230 papers indexed from APSA 2026 (5,493), ICA 2026 (3,413), and EPSS 2026 (1,324). Results reflect these three conference corpora and should not be interpreted as a comprehensive review of the global literature. No claim of novelty is made beyond this indexed corpus.",
   closestWork: "The most directly relevant work in this corpus is Chen & Watkins (2026), who examine algorithmic framing effects and political polarization through survey experiments, and Okonkwo et al. (2026), who revisit agenda-setting theory through the lens of algorithmic news feeds. These papers occupy the center of your research space and should be read as essential context. Rossetti & Nielsen (2026) extend this into source credibility dynamics under algorithmic distribution, a complementary angle that speaks to the epistemic mechanisms you hypothesize.",
   innovationDirections: [
     {
@@ -60,7 +60,7 @@ export const MOCK_REPORT: AnalysisReport = {
     "Decide whether your comparison condition is 'user-selected content' or 'chronological feed'. These are meaningfully different control conditions with different theoretical implications.",
   ],
   limitations: [
-    "This analysis is limited to papers presented at APSA 2026 and ICA 2026. Relevant work in political psychology, sociology, and computer science journals is not captured.",
+    "This analysis is limited to papers presented at APSA 2026, ICA 2026, and EPSS 2026. Relevant work in political psychology, sociology, and computer science journals is not captured.",
     "Papers are ranked by hybrid RRF retrieval score, which reflects textual and semantic similarity to your input idea. Retrieval rank does not indicate methodological quality or theoretical importance.",
     "The analysis cannot assess the publication status, peer review, or replication record of any cited paper.",
     "Conclusions about innovation directions reflect patterns in the indexed corpus only and do not constitute a claim that proposed directions are unexplored in the broader literature.",

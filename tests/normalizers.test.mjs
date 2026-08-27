@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeApsaPaper, normalizeIcaPaper } from '../src/ingestion/normalizers.mjs';
+import { normalizeApsaPaper, normalizeEpssPaper, normalizeIcaPaper } from '../src/ingestion/normalizers.mjs';
 
 const retrievedAt = '2026-08-21T12:00:00.000Z';
 
@@ -87,4 +87,22 @@ test('rejects a source record without an abstract', () => {
       }),
     /abstract/i,
   );
+});
+
+test('normalizes an EPSS record with paper-level Oxford Abstracts provenance', () => {
+  const normalized = normalizeEpssPaper({
+    id: '594',
+    title: 'Abortion Policy Design and Target Populations',
+    abstract: 'This public conference abstract contains enough detail for validation.',
+    authors: [{ name: 'Giulia Fornaro', affiliation: 'Bocconi University, Italy' }],
+    division: 'Gender and Sexuality Politics',
+    sessionTitle: 'GD02: Reproduction and Family Gender Norms',
+    sessionType: 'Panel',
+    directUrl: 'https://virtual.oxfordabstracts.com/event/75765/submission/594',
+    keywords: ['Gender and Sexuality Politics'],
+  }, { retrievedAt });
+
+  assert.equal(normalized.id, 'epss-2026-594');
+  assert.equal(normalized.conference.name, 'EPSS');
+  assert.equal(normalized.sourceUrl, 'https://virtual.oxfordabstracts.com/event/75765/submission/594');
 });

@@ -57,10 +57,10 @@ export default function ConferenceLibrary() {
           <p className="section-kicker">02 · {lang === "zh" ? "真实会议语料" : "LIVE CONFERENCE CORPUS"}</p>
           <h1 className="font-semibold tracking-tight text-2xl mb-1" style={{ color: "var(--ink)" }}>{t("library_title", lang)}</h1>
           <p className="text-sm" style={{ color: "var(--muted-c)" }}>
-            {lang === "zh" ? "搜索 APSA 2026 与 ICA 2026 的 8,906 篇论文及完整摘要。" : "Search 8,906 papers and full abstracts from APSA 2026 and ICA 2026."}
+            {lang === "zh" ? "搜索 APSA、ICA 与 EPSS 2026 的 10,230 篇论文及完整摘要。" : "Search 10,230 papers and full abstracts from APSA, ICA, and EPSS 2026."}
           </p>
         </div>
-        <div className="library-total"><span>8,906</span><small>{lang === "zh" ? "已索引论文" : "indexed papers"}</small></div>
+        <div className="library-total"><span>10,230</span><small>{lang === "zh" ? "已索引论文" : "indexed papers"}</small></div>
       </header>
 
       <section className="library-controls" aria-label={lang === "zh" ? "论文筛选" : "Paper filters"} data-reveal>
@@ -77,8 +77,9 @@ export default function ConferenceLibrary() {
         <div className="library-filter-row" role="group" aria-label={lang === "zh" ? "会议" : "Conference"}>
           {[
             ["", lang === "zh" ? "全部" : "All"],
-            ["apsa-2026", "APSA 2026"],
-            ["ica-2026", "ICA 2026"],
+            ["apsa", "APSA 2026"],
+            ["ica", "ICA 2026"],
+            ["epss", "EPSS 2026"],
           ].map(([value, label]) => (
             <button
               key={value || "all"}

@@ -13,8 +13,8 @@ export const zh: Record<string, string> = {
   corpus_ready: "在线",
   corpus_refreshing: "更新中",
   corpus_unavailable: "不可用",
-  corpus_sources: "APSA 2026 · ICA 2026",
-  corpus_detail: "8,906 篇论文来自 APSA 2026（5,493）和 ICA 2026（3,413）。语义向量 + 全文混合检索。结论仅限当前索引语料。",
+  corpus_sources: "APSA 2026 · ICA 2026 · EPSS 2026",
+  corpus_detail: "10,230 篇论文来自 APSA 2026（5,493）、ICA 2026（3,413）和 EPSS 2026（1,324）。语义向量 + 全文混合检索。结论仅限当前索引语料。",
 
   new_analysis_tagline: "看清你的想法与现有证据在哪里相遇，\n再找到可以站得住的下一步。",
   new_analysis_sub: "面向社会科学研究者的循证研究方向工具。",

@@ -7,7 +7,7 @@ import { ContentSkeleton } from "../components/ContentSkeleton";
 import { EmptyState } from "../components/EmptyState";
 import type { Paper } from "../types";
 
-type Conf = "all" | "APSA 2026" | "ICA 2026";
+type Conf = "all" | "APSA 2026" | "ICA 2026" | "EPSS 2026";
 
 export default function SavedPapers() {
   const { lang, user, setShowAuth, refreshUser } = useApp();
@@ -98,7 +98,7 @@ export default function SavedPapers() {
           />
         </div>
         {/* Conference filter */}
-        {(["all", "APSA 2026", "ICA 2026"] as Conf[]).map(f => (
+        {(["all", "APSA 2026", "ICA 2026", "EPSS 2026"] as Conf[]).map(f => (
           <button
             key={f}
             onClick={() => setConf(f)}

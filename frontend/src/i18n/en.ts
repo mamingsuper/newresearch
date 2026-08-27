@@ -15,8 +15,8 @@ export const en = {
   corpus_ready: "Live",
   corpus_refreshing: "Refreshing",
   corpus_unavailable: "Unavailable",
-  corpus_sources: "APSA 2026 · ICA 2026",
-  corpus_detail: "8,906 papers from APSA 2026 (5,493) and ICA 2026 (3,413). Semantic vector + full-text hybrid retrieval. Coverage limited to indexed corpus.",
+  corpus_sources: "APSA 2026 · ICA 2026 · EPSS 2026",
+  corpus_detail: "10,230 papers from APSA 2026 (5,493), ICA 2026 (3,413), and EPSS 2026 (1,324). Semantic vector + full-text hybrid retrieval. Coverage limited to indexed corpus.",
 
   // New Analysis
   new_analysis_tagline: "See where your idea meets the evidence,\nthen find a defensible way forward.",

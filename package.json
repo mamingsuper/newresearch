@@ -22,6 +22,7 @@
     "pages:build": "npm run browser:vendor && npm run frontend:build && node scripts/build-pages.mjs",
     "pages:budget": "node scripts/check-pages-budget.mjs",
     "import:snapshot": "node scripts/import-snapshot.mjs",
+    "corpus:fetch:oxford": "node scripts/fetch-oxford-abstracts.mjs",
     "corpus:validate": "node scripts/corpus-validate.mjs",
     "corpus:load": "node --env-file-if-exists=.env scripts/corpus-load.mjs",
     "corpus:embed": "node --env-file-if-exists=.env scripts/corpus-embed.mjs",

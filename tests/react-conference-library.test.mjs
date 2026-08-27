@@ -10,8 +10,9 @@ test('conference library uses the mediated corpus endpoint with search, filters,
   assert.match(adapter, /publicEdgeFetch\(`corpus-library\?/);
   assert.doesNotMatch(adapter, /\.from\(["']papers["']\)/);
   assert.match(page, /type=["']search["']/);
-  assert.match(page, /apsa-2026/);
-  assert.match(page, /ica-2026/);
+  assert.match(page, /\["apsa", "APSA 2026"\]/);
+  assert.match(page, /\["ica", "ICA 2026"\]/);
+  assert.match(page, /\["epss", "EPSS 2026"\]/);
   assert.match(page, /sourceUrl/);
   assert.match(page, /setPage/);
 });

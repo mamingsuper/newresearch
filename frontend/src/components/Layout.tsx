@@ -46,7 +46,7 @@ function CorpusPill({ compact }: { compact?: boolean }) {
     return (
       <div className="corpus-compact flex items-center gap-1.5 font-mono text-xs tabnum">
         <span className="live-dot" />
-        <span className="corpus-compact-label">8,906 {t("corpus_papers_indexed", lang)}</span>
+        <span className="corpus-compact-label">10,230 {t("corpus_papers_indexed", lang)}</span>
       </div>
     );
   }
@@ -59,7 +59,7 @@ function CorpusPill({ compact }: { compact?: boolean }) {
         <span className="live-dot" />
       </div>
       <p className="corpus-status-copy font-mono text-xs tabnum leading-snug">
-        8,906 papers<br/>APSA 2026 · ICA 2026
+        10,230 papers<br/>APSA · ICA · EPSS 2026
       </p>
     </div>
   );

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { normalizeApsaPaper, normalizeIcaPaper } from '../ingestion/normalizers.mjs';
+import { normalizeApsaPaper, normalizeEpssPaper, normalizeIcaPaper } from '../ingestion/normalizers.mjs';
 
 function recordsFromSnapshot(value) {
   if (Array.isArray(value)) return value;
@@ -12,6 +12,7 @@ function recordsFromSnapshot(value) {
 function adapterFor(source) {
   if (source === 'apsa') return normalizeApsaPaper;
   if (source === 'ica') return normalizeIcaPaper;
+  if (source === 'epss') return normalizeEpssPaper;
   throw new Error(`Unsupported source adapter: ${source}`);
 }
 

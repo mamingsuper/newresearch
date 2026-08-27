@@ -136,7 +136,7 @@ export default function AnalysisProgress() {
             </div>
 
             <p className="font-mono text-xs text-center mt-6 tabnum" style={{ color: "var(--muted-c)", opacity: 0.6 }}>
-              Corpus: 8,906 papers · APSA 2026 · ICA 2026
+              Corpus: 10,230 papers · APSA 2026 · ICA 2026 · EPSS 2026
             </p>
           </section>
         )}

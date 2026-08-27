@@ -110,3 +110,23 @@ export function normalizeIcaPaper(record, options = {}) {
     original: record,
   });
 }
+
+export function normalizeEpssPaper(record, options = {}) {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) {
+    throw new ValidationError('must be an object', 'EPSS record');
+  }
+  return buildPaper({
+    conference: { slug: 'epss', name: 'EPSS', year: 2026 },
+    sourceRecordId: record.id,
+    title: record.title,
+    abstract: record.abstract,
+    authors: record.authors,
+    division: record.division,
+    sessionTitle: record.sessionTitle,
+    sessionType: record.sessionType,
+    sourceUrl: record.directUrl,
+    keywords: record.keywords,
+    retrievedAt: options.retrievedAt,
+    original: record,
+  });
+}
