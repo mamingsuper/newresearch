@@ -1175,8 +1175,13 @@ button,
 
 @media (max-width: 1023px) {
   .analysis-page { padding-top: 48px; }
-  .analysis-hero { grid-template-columns: minmax(0, 1fr) 240px; min-height: 330px; gap: 36px; }
-  .hero-title { font-size: clamp(3rem, 7vw, 4.8rem); }
+  .analysis-hero {
+    grid-template-columns: minmax(0, 1fr) clamp(190px, 22vw, 220px);
+    min-height: 330px;
+    gap: clamp(22px, 3vw, 32px);
+  }
+  .hero-title { font-size: clamp(3rem, 5.7vw, 3.75rem); }
+  .evidence-radar { width: min(100%, 220px); }
   .corpus-grid { grid-template-columns: 1.25fr 1fr; }
   .submit-form-grid { grid-template-columns: minmax(0, 1.4fr) minmax(110px, 0.6fr) minmax(90px, 0.45fr); }
   .submit-form-grid > :last-child { grid-column: span 3; }
